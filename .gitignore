@@ -1,6 +1,28 @@
+# Rust build artifacts
 /target
-**/*.rs.bk
 Cargo.lock
+
+# Runtime logs & temporary files
 *.log
+/tmp
 /build
+/dist
+/artifacts
+/release-assets
 .credentials
+
+# Editor & OS files
+*.swp
+*~
+.DS_Store
+.idea
+.vscode
+
+# Arch Linux makepkg artifacts
+*.pkg.tar.zst
+*.pkg.tar.xz
+pkgbuild/src/
+pkgbuild/pkg/
+pkgbuild/*.pkg.tar.*
+pkgbuild/*.tar.gz
+pkgbuild/*.log

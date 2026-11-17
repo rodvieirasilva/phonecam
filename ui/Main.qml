@@ -5,16 +5,26 @@ import QtQuick.Layouts
 ApplicationWindow {
     id: window
     visible: true
-    width: 680
-    height: 760
-    minimumWidth: 540
-    minimumHeight: 650
+    width: 700
+    height: 820
+    minimumWidth: 560
+    minimumHeight: 680
     title: "PhoneCam — Smartphone Virtual Webcam"
     color: "#18181b"
 
+    // Theme state
+    property string accentColor: "#FFD60A"
+    property var themePresets: [
+        { name: "Omarchy Gold",  hex: "#FFD60A" },
+        { name: "Cyber Emerald", hex: "#10B981" },
+        { name: "Sky Blue",      hex: "#38BDF8" },
+        { name: "Neon Violet",   hex: "#A855F7" },
+        { name: "Sunset Orange", hex: "#F97316" },
+        { name: "Rose Pink",     hex: "#F43F5E" }
+    ]
+
     // Runtime state
     property int port: 41789
-    property string accentColor: "#FFD60A"
     property bool isStreaming: false
     property bool isDeviceConnected: false
     property string deviceName: "Detecting..."
@@ -23,10 +33,14 @@ ApplicationWindow {
     property var camerasList: []
     property var recentLogs: []
 
+    // Synchronization guard to prevent event loops between buttons and combobox
+    property bool isUpdatingCameraSelection: false
+
     // Configuration model
     property string currentFacing: "back"
-    property int currentCameraId: 0
+    property var currentCameraId: null
     property string currentRes: "1920x1080"
+    property string currentAr: ""
     property string currentCrop: ""
     property int currentFps: 30
     property bool flipH: false
@@ -36,8 +50,6 @@ ApplicationWindow {
     property bool torchOn: false
 
     Component.onCompleted: {
-        var envPort = Qt.application.arguments;
-        // Check environment variable passed
         fetchStatus();
         pollTimer.start();
     }
@@ -74,16 +86,18 @@ ApplicationWindow {
 
     function fetchStatus() {
         apiCall("/api/status", "GET", null, function(data) {
-            if (data.accent_color) {
+            // Apply accent only if user hasn't explicitly customized it
+            if (!userCustomizedAccent && data.accent_color) {
                 accentColor = data.accent_color;
             }
             isStreaming = data.is_streaming;
+
             if (data.device) {
                 if (data.device.status === "Connected") {
                     isDeviceConnected = true;
                     deviceName = data.device.brand.toUpperCase() + " " + data.device.model;
                     deviceSerial = data.device.serial;
-                    if (data.device.battery_percent !== null) {
+                    if (data.device.battery_percent !== null && data.device.battery_percent !== undefined) {
                         batteryText = data.device.battery_percent + "%" + (data.device.is_charging ? " ⚡" : "");
                     }
                 } else if (data.device.status === "Unauthorized") {
@@ -94,15 +108,18 @@ ApplicationWindow {
                     deviceName = "No smartphone detected";
                 }
             }
-            if (data.cameras) {
+
+            if (data.cameras && data.cameras.length > 0) {
                 camerasList = data.cameras;
+                syncCameraSelectionFromState();
             }
+
             if (data.config) {
                 currentFacing = data.config.facing;
-                if (data.config.camera_id !== null && data.config.camera_id !== undefined) {
-                    currentCameraId = data.config.camera_id;
-                }
+                currentCameraId = data.config.camera_id;
                 currentRes = data.config.resolution;
+                currentAr = data.config.camera_ar ? data.config.camera_ar : "";
+                currentCrop = data.config.crop ? data.config.crop : "";
                 currentFps = data.config.fps;
                 flipH = data.config.flip_h;
                 flipV = data.config.flip_v;
@@ -113,28 +130,113 @@ ApplicationWindow {
         });
     }
 
+    property bool userCustomizedAccent: false
+
+    function setCustomAccent(colorHex) {
+        userCustomizedAccent = true;
+        accentColor = colorHex;
+    }
+
     function fetchLogs() {
         apiCall("/api/logs", "GET", null, function(data) {
             recentLogs = data;
         });
     }
 
+    // Bidirectional camera synchronization
+    function syncCameraSelectionFromState() {
+        if (isUpdatingCameraSelection || camerasList.length === 0) return;
+        isUpdatingCameraSelection = true;
+
+        if (currentCameraId !== null && currentCameraId !== undefined) {
+            for (var i = 0; i < camerasList.length; i++) {
+                if (camerasList[i].id === currentCameraId) {
+                    cameraCombo.currentIndex = i;
+                    currentFacing = camerasList[i].facing;
+                    break;
+                }
+            }
+        } else {
+            // Find first camera matching currentFacing
+            for (var j = 0; j < camerasList.length; j++) {
+                if (camerasList[j].facing === currentFacing) {
+                    cameraCombo.currentIndex = j;
+                    currentCameraId = camerasList[j].id;
+                    break;
+                }
+            }
+        }
+
+        isUpdatingCameraSelection = false;
+    }
+
+    function selectFacing(facing) {
+        if (isUpdatingCameraSelection) return;
+        isUpdatingCameraSelection = true;
+
+        currentFacing = facing;
+
+        // Auto-select the corresponding camera in the combobox
+        var matchedIndex = -1;
+        for (var i = 0; i < camerasList.length; i++) {
+            if (camerasList[i].facing === facing) {
+                matchedIndex = i;
+                currentCameraId = camerasList[i].id;
+                break;
+            }
+        }
+
+        if (matchedIndex !== -1) {
+            cameraCombo.currentIndex = matchedIndex;
+            apiCall("/api/select-camera", "POST", { id: currentCameraId, facing: facing }, function() {
+                fetchStatus();
+            });
+        } else {
+            currentCameraId = null;
+            apiCall("/api/set-facing", "POST", { facing: facing }, function() {
+                fetchStatus();
+            });
+        }
+
+        isUpdatingCameraSelection = false;
+    }
+
+    function onCameraComboSelected(index) {
+        if (isUpdatingCameraSelection || index < 0 || index >= camerasList.length) return;
+        isUpdatingCameraSelection = true;
+
+        var selected = camerasList[index];
+        currentFacing = selected.facing;
+        currentCameraId = selected.id;
+
+        apiCall("/api/select-camera", "POST", { id: selected.id, facing: selected.facing }, function() {
+            fetchStatus();
+        });
+
+        isUpdatingCameraSelection = false;
+    }
+
     function startStream() {
+        var arVal = null;
         var cropVal = null;
+
         if (cropCombo.currentIndex === 1) { // 16:9
-            cropVal = "1920:1080:0:0";
+            arVal = "16:9";
         } else if (cropCombo.currentIndex === 2) { // 4:3
-            cropVal = "1440:1080:240:0";
+            arVal = "4:3";
         } else if (cropCombo.currentIndex === 3) { // 1:1 Square
-            cropVal = "1080:1080:420:0";
+            arVal = "1:1";
+        } else if (cropCombo.currentIndex === 4) { // Custom 1080p center
+            cropVal = "1920:1080:0:0";
         }
 
         var cfg = {
             video_nr: 10,
             card_label: "PhoneCam Virtual Camera",
             facing: currentFacing,
-            camera_id: cameraCombo.currentIndex >= 0 && cameraCombo.currentIndex < camerasList.length ? camerasList[cameraCombo.currentIndex].id : null,
+            camera_id: currentCameraId,
             resolution: currentRes,
+            camera_ar: arVal,
             crop: cropVal,
             fps: currentFps,
             flip_h: flipH,
@@ -175,22 +277,14 @@ ApplicationWindow {
     Shortcut {
         sequence: "Escape"
         onActivated: {
-            if (isStreaming) {
-                stopStream();
-            } else {
-                window.close();
-            }
+            if (isStreaming) stopStream(); else window.close();
         }
     }
 
     Shortcut {
         sequence: "q"
         onActivated: {
-            if (isStreaming) {
-                stopStream();
-            } else {
-                window.close();
-            }
+            if (isStreaming) stopStream(); else window.close();
         }
     }
 
@@ -209,11 +303,11 @@ ApplicationWindow {
         ColumnLayout {
             width: parent.width - 32
             anchors.horizontalCenter: parent.horizontalCenter
-            spacing: 16
+            spacing: 14
 
-            Item { height: 8 }
+            Item { height: 4 }
 
-            // 1. Header & Title Bar
+            // 1. Header & Theme Color Swatches Bar
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 12
@@ -240,7 +334,7 @@ ApplicationWindow {
                         color: "#f4f4f5"
                     }
                     Text {
-                        text: "Virtual Webcam for Omarchy & Linux"
+                        text: "Studio Smartphone Webcam for Omarchy"
                         font.pixelSize: 12
                         color: "#a1a1aa"
                     }
@@ -248,9 +342,31 @@ ApplicationWindow {
 
                 Item { Layout.fillWidth: true }
 
+                // Theme Palette Swatches
+                RowLayout {
+                    spacing: 6
+                    Repeater {
+                        model: themePresets
+                        Rectangle {
+                            width: 24
+                            height: 24
+                            radius: 12
+                            color: modelData.hex
+                            border.color: accentColor === modelData.hex ? "#ffffff" : "transparent"
+                            border.width: accentColor === modelData.hex ? 2 : 0
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: setCustomAccent(modelData.hex)
+                            }
+                        }
+                    }
+                }
+
                 // Refresh Button
                 Button {
-                    text: "🔄 Refresh"
+                    text: "🔄"
                     onClicked: {
                         fetchStatus();
                         fetchLogs();
@@ -258,7 +374,7 @@ ApplicationWindow {
                     contentItem: Text {
                         text: parent.text
                         color: "#e4e4e7"
-                        font.pixelSize: 12
+                        font.pixelSize: 14
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }
@@ -274,7 +390,7 @@ ApplicationWindow {
             // 2. Device Status Card
             Rectangle {
                 Layout.fillWidth: true
-                height: 72
+                height: 70
                 radius: 12
                 color: "#27272a"
                 border.color: isDeviceConnected ? "#10b981" : "#ef4444"
@@ -282,7 +398,7 @@ ApplicationWindow {
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.margins: 14
+                    anchors.margins: 12
                     spacing: 12
 
                     Rectangle {
@@ -301,7 +417,7 @@ ApplicationWindow {
                             color: "#f4f4f5"
                         }
                         Text {
-                            text: isDeviceConnected ? ("ADB Serial: " + deviceSerial) : "Plug in USB-C & Enable USB Debugging"
+                            text: isDeviceConnected ? ("ADB Serial: " + deviceSerial) : "Connect phone via USB-C & Enable USB Debugging"
                             font.pixelSize: 12
                             color: "#a1a1aa"
                         }
@@ -309,10 +425,9 @@ ApplicationWindow {
 
                     Item { Layout.fillWidth: true }
 
-                    // Battery Badge
                     Rectangle {
                         visible: batteryText.length > 0
-                        width: 72
+                        width: 76
                         height: 28
                         radius: 6
                         color: "#3f3f46"
@@ -328,7 +443,7 @@ ApplicationWindow {
                 }
             }
 
-            // 3. Camera Selection Card
+            // 3. Camera Selection Card (Bidirectionally Synchronized)
             Rectangle {
                 Layout.fillWidth: true
                 implicitHeight: cameraCol.implicitHeight + 28
@@ -343,11 +458,20 @@ ApplicationWindow {
                     anchors.margins: 14
                     spacing: 12
 
-                    Text {
-                        text: "CAMERA SELECTION"
-                        font.pixelSize: 11
-                        font.bold: true
-                        color: accentColor
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text {
+                            text: "CAMERA SELECTION & SENSOR"
+                            font.pixelSize: 11
+                            font.bold: true
+                            color: accentColor
+                        }
+                        Item { Layout.fillWidth: true }
+                        Text {
+                            text: "Auto-synced buttons & lens list"
+                            font.pixelSize: 11
+                            color: "#71717a"
+                        }
                     }
 
                     // Facing Segmented Toggle
@@ -356,15 +480,13 @@ ApplicationWindow {
                         spacing: 8
 
                         Button {
+                            id: rearBtn
                             Layout.fillWidth: true
                             height: 38
                             text: "📸 Rear Camera (Back)"
                             checkable: true
                             checked: currentFacing === "back"
-                            onClicked: {
-                                currentFacing = "back";
-                                apiCall("/api/set-facing", "POST", { facing: "back" }, function() { fetchStatus(); });
-                            }
+                            onClicked: selectFacing("back")
                             contentItem: Text {
                                 text: parent.text
                                 font.pixelSize: 13
@@ -380,15 +502,13 @@ ApplicationWindow {
                         }
 
                         Button {
+                            id: frontBtn
                             Layout.fillWidth: true
                             height: 38
                             text: "🤳 Selfie Camera (Front)"
                             checkable: true
                             checked: currentFacing === "front"
-                            onClicked: {
-                                currentFacing = "front";
-                                apiCall("/api/set-facing", "POST", { facing: "front" }, function() { fetchStatus(); });
-                            }
+                            onClicked: selectFacing("front")
                             contentItem: Text {
                                 text: parent.text
                                 font.pixelSize: 13
@@ -404,13 +524,13 @@ ApplicationWindow {
                         }
                     }
 
-                    // Specific Sensor Dropdown
+                    // Sensor Dropdown (Syncs with Facing Buttons)
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 8
 
                         Text {
-                            text: "Sensor / Lens:"
+                            text: "Specific Lens:"
                             color: "#d4d4d8"
                             font.pixelSize: 13
                             Layout.preferredWidth: 100
@@ -423,24 +543,17 @@ ApplicationWindow {
                                 var items = [];
                                 for (var i = 0; i < camerasList.length; i++) {
                                     var c = camerasList[i];
-                                    items.push("Camera #" + c.id + " (" + c.facing + " — " + c.resolution + ", zoom " + c.zoom_range + ")");
+                                    items.push("Camera #" + c.id + " (" + c.facing.toUpperCase() + " — " + c.resolution + ", zoom " + c.zoom_range + ")");
                                 }
                                 return items.length > 0 ? items : ["Default Camera"];
                             }
-                            onActivated: {
-                                if (index >= 0 && index < camerasList.length) {
-                                    var selected = camerasList[index];
-                                    currentFacing = selected.facing;
-                                    currentCameraId = selected.id;
-                                    apiCall("/api/select-camera", "POST", { id: selected.id, facing: selected.facing }, function() { fetchStatus(); });
-                                }
-                            }
+                            onActivated: onCameraComboSelected(index)
                         }
                     }
                 }
             }
 
-            // 4. Geometry & Cut / Resize Card
+            // 4. Geometry & Cut / Crop Card
             Rectangle {
                 Layout.fillWidth: true
                 implicitHeight: geomCol.implicitHeight + 28
@@ -489,7 +602,7 @@ ApplicationWindow {
                             }
                         }
 
-                        // Crop / Cut
+                        // Crop / Cut Preset
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: 4
@@ -501,7 +614,13 @@ ApplicationWindow {
                             ComboBox {
                                 id: cropCombo
                                 Layout.fillWidth: true
-                                model: ["Full Sensor (None)", "16:9 Widescreen Crop", "4:3 Standard Crop", "1:1 Square (Avatar)"]
+                                model: [
+                                    "Full Sensor (Native)",
+                                    "16:9 Widescreen Crop",
+                                    "4:3 Standard Crop",
+                                    "1:1 Square (Avatar)",
+                                    "Custom 1080p Center Cut"
+                                ]
                                 currentIndex: 0
                             }
                         }
@@ -565,7 +684,7 @@ ApplicationWindow {
                             ColumnLayout {
                                 spacing: 1
                                 Text { text: "Flip Vertical (180°)"; color: "#f4f4f5"; font.pixelSize: 13 }
-                                Text { text: "Upside down mount fix"; color: "#a1a1aa"; font.pixelSize: 11 }
+                                Text { text: "Inverted mount correction"; color: "#a1a1aa"; font.pixelSize: 11 }
                             }
                         }
 
@@ -593,14 +712,28 @@ ApplicationWindow {
                                 id: torchSwitch
                                 checked: torchOn
                                 enabled: currentFacing === "back"
-                                onToggled: {
-                                    torchOn = !torchOn;
-                                }
+                                onToggled: { torchOn = !torchOn; }
                             }
                             ColumnLayout {
                                 spacing: 1
                                 Text { text: "Camera Torch (Flashlight)"; color: "#f4f4f5"; font.pixelSize: 13 }
-                                Text { text: "Illumination for rear lens"; color: "#a1a1aa"; font.pixelSize: 11 }
+                                Text { text: "Rear lens studio lighting"; color: "#a1a1aa"; font.pixelSize: 11 }
+                            }
+                        }
+
+                        // Preview Window Toggle
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+                            Switch {
+                                id: previewSwitch
+                                checked: showPreview
+                                onToggled: { showPreview = !showPreview; }
+                            }
+                            ColumnLayout {
+                                spacing: 1
+                                Text { text: "Live Desktop Preview"; color: "#f4f4f5"; font.pixelSize: 13 }
+                                Text { text: "Open real-time monitor window"; color: "#a1a1aa"; font.pixelSize: 11 }
                             }
                         }
                     }
@@ -638,9 +771,33 @@ ApplicationWindow {
 
                     Item { Layout.fillWidth: true }
 
+                    // Dedicated Preview Button
                     Button {
-                        Layout.preferredWidth: 200
-                        Layout.preferredHeight: 48
+                        Layout.preferredWidth: 130
+                        Layout.preferredHeight: 46
+                        text: "👁️ Preview"
+                        onClicked: {
+                            showPreview = true;
+                            startStream();
+                        }
+                        contentItem: Text {
+                            text: parent.text
+                            font.pixelSize: 13
+                            font.bold: true
+                            color: "#e4e4e7"
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                        background: Rectangle {
+                            color: "#3f3f46"
+                            radius: 10
+                        }
+                    }
+
+                    // Main Action Button
+                    Button {
+                        Layout.preferredWidth: 170
+                        Layout.preferredHeight: 46
                         text: isStreaming ? "🛑 Stop & Detach" : "🚀 Start Webcam"
                         onClicked: {
                             if (isStreaming) {
@@ -651,7 +808,7 @@ ApplicationWindow {
                         }
                         contentItem: Text {
                             text: parent.text
-                            font.pixelSize: 15
+                            font.pixelSize: 14
                             font.bold: true
                             color: isStreaming ? "#ffffff" : "#18181b"
                             horizontalAlignment: Text.AlignHCenter
@@ -668,7 +825,7 @@ ApplicationWindow {
             // 7. Live Console & Diagnostics
             Rectangle {
                 Layout.fillWidth: true
-                height: 140
+                height: 130
                 radius: 12
                 color: "#1c1917"
                 border.color: "#292524"

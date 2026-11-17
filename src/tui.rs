@@ -1,5 +1,3 @@
-use std::io::{stdout, Write};
-use std::time::Duration;
 use anyhow::{Context, Result};
 use crossterm::{
     cursor,
@@ -8,9 +6,11 @@ use crossterm::{
     style::ResetColor,
     terminal::{self, Clear, ClearType},
 };
+use std::io::{Write, stdout};
+use std::time::Duration;
 
+use crate::adb::{DeviceStatus, detect_device};
 use crate::config::AppConfig;
-use crate::adb::{detect_device, DeviceStatus};
 use crate::pipeline::StreamManager;
 
 pub fn run_tui(config: AppConfig) -> Result<()> {
@@ -25,7 +25,9 @@ pub fn run_tui(config: AppConfig) -> Result<()> {
                 }
                 DeviceStatus::Unauthorized => {
                     eprintln!("\n⚠️  DEVICE UNAUTHORIZED: {}", dev.serial);
-                    eprintln!("   Please check your phone's screen and tap: 'Allow USB debugging'.");
+                    eprintln!(
+                        "   Please check your phone's screen and tap: 'Allow USB debugging'."
+                    );
                     eprintln!("   Retrying in 2 seconds...");
                     std::thread::sleep(Duration::from_secs(2));
                 }
@@ -39,7 +41,9 @@ pub fn run_tui(config: AppConfig) -> Result<()> {
                 DeviceStatus::Offline => {
                     eprintln!("\n⚠️  DEVICE OFFLINE: {}", dev.serial);
                     eprintln!("   Reconnecting ADB server...");
-                    let _ = std::process::Command::new("adb").args(["reconnect"]).output();
+                    let _ = std::process::Command::new("adb")
+                        .args(["reconnect"])
+                        .output();
                     std::thread::sleep(Duration::from_secs(2));
                 }
             },
@@ -50,15 +54,31 @@ pub fn run_tui(config: AppConfig) -> Result<()> {
         }
     };
 
-    println!("\n✅ Connected: {} {} ({})", device.brand.to_uppercase(), device.model, device.serial);
+    println!(
+        "\n✅ Connected: {} {} ({})",
+        device.brand.to_uppercase(),
+        device.model,
+        device.serial
+    );
     if let Some(pct) = device.battery_percent {
-        println!("🔋 Battery: {}%{}", pct, if device.is_charging.unwrap_or(false) { " (Charging)" } else { "" });
+        println!(
+            "🔋 Battery: {}%{}",
+            pct,
+            if device.is_charging.unwrap_or(false) {
+                " (Charging)"
+            } else {
+                ""
+            }
+        );
     }
 
     // 2. Setup Stream Manager
     let mut mgr = StreamManager::new(config.clone());
 
-    println!("🚀 Starting virtual webcam stream to {}...", config.video_device_path());
+    println!(
+        "🚀 Starting virtual webcam stream to {}...",
+        config.video_device_path()
+    );
     if let Err(e) = mgr.start(config.clone()) {
         eprintln!("\n❌ Failed to start camera stream: {}", e);
         return Err(e);
@@ -71,10 +91,10 @@ pub fn run_tui(config: AppConfig) -> Result<()> {
     terminal::enable_raw_mode().context("Failed to enable raw terminal mode")?;
 
     let any_key_pressed = loop {
-        if event::poll(Duration::from_millis(500))? {
-            if let Event::Key(_) = event::read()? {
-                break true;
-            }
+        if event::poll(Duration::from_millis(500))?
+            && let Event::Key(_) = event::read()?
+        {
+            break true;
         }
 
         // Check if stream crashed unexpectedly
@@ -97,7 +117,10 @@ pub fn run_tui(config: AppConfig) -> Result<()> {
 
     // 5. Clean teardown and auto-detach
     let _ = mgr.stop();
-    println!("✨ Virtual webcam {} detached cleanly. Done.\n", config.video_device_path());
+    println!(
+        "✨ Virtual webcam {} detached cleanly. Done.\n",
+        config.video_device_path()
+    );
 
     Ok(())
 }
@@ -109,16 +132,39 @@ fn render_dashboard(dev: &crate::adb::DeviceInfo, cfg: &AppConfig) {
     println!("╔══════════════════════════════════════════════════════════════════╗");
     println!("║                    📱 PHONECAM VIRTUAL WEBCAM                    ║");
     println!("╠══════════════════════════════════════════════════════════════════╣");
-    println!("║  Device:    {:<20} Brand:   {:<20}║", dev.model, dev.brand.to_uppercase());
-    println!("║  Serial:    {:<20} Android: {:<20}║", dev.serial, dev.android_version);
+    println!(
+        "║  Device:    {:<20} Brand:   {:<20}║",
+        dev.model,
+        dev.brand.to_uppercase()
+    );
+    println!(
+        "║  Serial:    {:<20} Android: {:<20}║",
+        dev.serial, dev.android_version
+    );
     println!(
         "║  Battery:   {:<20} Output:  {:<20}║",
-        format!("{}%{}", dev.battery_percent.unwrap_or(0), if dev.is_charging.unwrap_or(false) { " ⚡" } else { "" }),
+        format!(
+            "{}%{}",
+            dev.battery_percent.unwrap_or(0),
+            if dev.is_charging.unwrap_or(false) {
+                " ⚡"
+            } else {
+                ""
+            }
+        ),
         cfg.video_device_path()
     );
     println!("╠══════════════════════════════════════════════════════════════════╣");
-    println!("║  Camera:    {:<20} Size:    {:<20}║", cfg.facing.to_uppercase(), cfg.resolution);
-    println!("║  Framerate: {:<20} Crop:    {:<20}║", format!("{} FPS", cfg.fps), cfg.crop.as_deref().unwrap_or("None (Full)"));
+    println!(
+        "║  Camera:    {:<20} Size:    {:<20}║",
+        cfg.facing.to_uppercase(),
+        cfg.resolution
+    );
+    println!(
+        "║  Framerate: {:<20} Crop:    {:<20}║",
+        format!("{} FPS", cfg.fps),
+        cfg.crop.as_deref().unwrap_or("None (Full)")
+    );
     println!(
         "║  Effects:   Mirror: {:<12} Invert:  {:<12} Flip-V: {:<6}║",
         if cfg.flip_h { "ON" } else { "OFF" },

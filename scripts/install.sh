@@ -87,11 +87,37 @@ if command -v update-desktop-database >/dev/null 2>&1; then
     run_sudo update-desktop-database /usr/share/applications 2>/dev/null || true
 fi
 
-echo "==> Ensuring v4l2loopback passwordless sudoer rule..."
+echo "==> Configuring one-time root setup (autoload at boot & zero-root permissions)..."
+# 1. Autoload module at boot
+MODULES_LOAD="/etc/modules-load.d/v4l2loopback.conf"
+TMP_MOD_LOAD="/tmp/phonecam_modules_load"
+echo "v4l2loopback" > "$TMP_MOD_LOAD"
+run_sudo cp "$TMP_MOD_LOAD" "$MODULES_LOAD" 2>/dev/null || true
+rm -f "$TMP_MOD_LOAD"
+
+# 2. Module default parameters
+MODPROBE_CONF="/etc/modprobe.d/v4l2loopback.conf"
+TMP_MOD_CONF="/tmp/phonecam_modprobe_conf"
+echo 'options v4l2loopback devices=1 video_nr=10 card_label="PhoneCam Virtual Camera" exclusive_caps=1' > "$TMP_MOD_CONF"
+run_sudo cp "$TMP_MOD_CONF" "$MODPROBE_CONF" 2>/dev/null || true
+rm -f "$TMP_MOD_CONF"
+
+# 3. Udev rule for non-root read/write permissions
+UDEV_RULE="/etc/udev/rules.d/99-v4l2loopback.rules"
+TMP_UDEV="/tmp/phonecam_udev"
+echo 'KERNEL=="video*", SUBSYSTEM=="video4linux", ATTR{name}=="PhoneCam*", MODE="0666", GROUP="video"' > "$TMP_UDEV"
+echo 'KERNEL=="video10", MODE="0666", GROUP="video"' >> "$TMP_UDEV"
+run_sudo cp "$TMP_UDEV" "$UDEV_RULE" 2>/dev/null || true
+rm -f "$TMP_UDEV"
+run_sudo udevadm control --reload-rules 2>/dev/null || true
+run_sudo udevadm trigger 2>/dev/null || true
+
+# 4. Passwordless sudoers rule fallback
 SUDOERS_FILE="/etc/sudoers.d/phonecam-v4l2loopback"
 if [[ ! -f "$SUDOERS_FILE" ]]; then
     TMP_SUDOERS="/tmp/phonecam_sudoers"
     echo "$USER ALL=(ALL) NOPASSWD: /usr/bin/modprobe v4l2loopback *" > "$TMP_SUDOERS"
+    echo "$USER ALL=(ALL) NOPASSWD: /usr/bin/modprobe -r v4l2loopback" >> "$TMP_SUDOERS"
     echo "$USER ALL=(ALL) NOPASSWD: /usr/bin/rmmod v4l2loopback" >> "$TMP_SUDOERS"
     echo "$USER ALL=(ALL) NOPASSWD: /usr/bin/chmod 666 /dev/video*" >> "$TMP_SUDOERS"
     chmod 0440 "$TMP_SUDOERS"

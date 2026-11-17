@@ -1,15 +1,40 @@
 # PhoneCam 📱📹
 
 > **High-performance smartphone webcam virtual device manager for Omarchy Linux and Arch Linux.**  
-> Built natively in **Rust** with an **Omarchy-styled Qt Quick (QML) UI**, leveraging `scrcpy` and `v4l2loopback` for zero-latency, high-definition camera streaming directly into `/dev/video10`.
+> Built natively in **Rust** with an **Omarchy-styled Qt Quick (QML) UI**, leveraging `scrcpy` and `v4l2loopback` for zero-latency, studio-quality camera streaming directly into `/dev/video10`.
 
 ---
 
-## 🚀 Overview
+## 📸 Screenshots
 
-**PhoneCam** transforms your Android smartphone (e.g., Samsung Galaxy S24, Google Pixel, OnePlus) into a studio-grade virtual webcam for Linux. Any desktop application—including **OBS Studio, Discord, Google Meet, Chromium, Firefox, Zoom, and Teams**—recognizes your phone as a standard UVC webcam (`/dev/video10`).
+### Modern Qt Quick Desktop Interface
+![PhoneCam Desktop UI](assets/screenshot-gui.png)
 
-PhoneCam is built from scratch in **Rust** with a companion **Qt Quick / QML** modern dark interface following the Omarchy desktop design system.
+### Interactive Terminal Dashboard (TUI)
+```text
+╔══════════════════════════════════════════════════════════════════╗
+║                    📱 PHONECAM VIRTUAL WEBCAM                    ║
+╠══════════════════════════════════════════════════════════════════╣
+║  Device:    Galaxy S24        Brand:   SAMSUNG                ║
+║  Serial:    RFCNC000000          Android: 16                     ║
+║  Battery:   84% ⚡                Output:  /dev/video10           ║
+╠══════════════════════════════════════════════════════════════════╣
+║  Camera:    BACK                 Size:    1920x1080              ║
+║  Framerate: 30 FPS               Crop:    16:9 Widescreen        ║
+║  Effects:   Mirror: OFF | Invert: OFF | Flip-V: OFF              ║
+╠══════════════════════════════════════════════════════════════════╣
+║  Status:    ● STREAMING LIVE (UVC Virtual Webcam Ready)         ║
+║  Compatible apps: Discord, Chromium, Firefox, Zoom, OBS, etc.   ║
+╠══════════════════════════════════════════════════════════════════╣
+║  👉 Press ANY KEY (or 'q' / Ctrl+C) to stop and auto-detach     ║
+╚══════════════════════════════════════════════════════════════════╝
+```
+
+---
+
+## 🚀 Overview & Architecture
+
+**PhoneCam** transforms your Android smartphone (Samsung Galaxy, Google Pixel, OnePlus, etc.) into a studio-grade virtual webcam for Linux. Any desktop application—including **OBS Studio, Discord, Google Meet, Chromium, Firefox, Zoom, and Teams**—recognizes your phone as a standard UVC webcam (`/dev/video10`).
 
 ```mermaid
 graph LR
@@ -29,157 +54,117 @@ graph LR
 
 ## ✨ Features
 
-- **📱 Intelligent Phone & ADB Detection**:
+- **📱 Smart Phone & ADB Detection**:
   - Automatically identifies phone brand, model, Android version, and live battery level.
-  - Clear user feedback if the phone is disconnected, offline, or awaiting USB debugging authorization.
-- **🔄 Instant Camera Selection**:
-  - Switch smoothly between **Front (Selfie)** and **Back (Rear)** cameras.
-  - Enumerate and select specific multi-camera lenses (Wide, Ultrawide, Telephoto).
-- **✂️ Cut & Crop Presets**:
-  - **Full Sensor**: Complete optical frame without cropping.
-  - **16:9 Widescreen**: Standard modern webcam aspect ratio.
-  - **4:3 Classic**: Traditional portrait/video call framing.
-  - **1:1 Square**: Perfect for profile avatars and social streams.
-- **📐 Resize & Resolution**:
-  - 1080p Full HD (`1920x1080`) @ 30/60 FPS (Default).
-  - 720p HD (`1280x720`).
-  - 4K Ultra HD (`3840x2160`).
-  - 2K Quad HD (`2560x1440`).
-- **🪞 Flip & Mirror**:
-  - **Horizontal Flip (Mirror)**: Essential for a natural webcam selfie experience.
-  - **Vertical Flip (180°)**: Correct upside-down tripod and overhead mountings.
-- **🎨 Color Inversion (Negative Filter)**:
-  - Hardware-accelerated color inversion filter via real-time ffmpeg negate stream piping.
-- **💡 Flashlight / Torch**:
-  - Toggle smartphone LED flashlight for rear camera studio lighting.
+  - Clear user guidance if the phone is disconnected, offline, or awaiting USB debugging authorization.
+- **🔄 Bidirectional Camera Selection**:
+  - Click **Rear (Back)** or **Selfie (Front)** and the lens dropdown updates automatically to the primary sensor.
+  - Select any specific camera lens (Wide, Ultrawide, Telephoto) and the front/back toggles automatically synchronize.
+  - Automatically avoids the `Cannot specify both --camera-id and --camera-facing` conflict.
+- **✂️ Cut & Aspect Ratio Crop**:
+  - **Full Sensor**: Native uncropped camera sensor frame.
+  - **16:9 Widescreen Crop**: High-speed native aspect ratio cropping (`--camera-ar=16:9`).
+  - **4:3 Standard Crop**: Traditional video call framing (`--camera-ar=4:3`).
+  - **1:1 Square (Avatar)**: Square crop for social media and avatar streams (`--camera-ar=1:1`).
+  - **Custom Center Cut**: Pixel-perfect centering (`--crop=1920:1080:0:0`).
+- **🎨 Dynamic Theme Switching**:
+  - Six instant palette presets: **Omarchy Gold** (`#FFD60A`), **Cyber Emerald** (`#10B981`), **Sky Blue** (`#38BDF8`), **Neon Violet** (`#A855F7`), **Sunset Orange** (`#F97316`), and **Rose Pink** (`#F43F5E`).
+  - Reads live desktop theme from `~/.local/state/omarchy/current/theme/colors.toml`.
+- **👁️ Live On-Screen Preview**:
+  - Click the **👁️ Preview** button or toggle to view a real-time on-screen monitor window while streaming to `/dev/video10`.
+- **🔐 One-Time Root Setup (Zero Root Runtime)**:
+  - Configures kernel autoloading at boot (`/etc/modules-load.d/v4l2loopback.conf`), module options (`/etc/modprobe.d/v4l2loopback.conf`), and non-root device permissions (`/etc/udev/rules.d/99-v4l2loopback.rules`).
+  - **Root is required only once during installation.** Runtime execution runs 100% as an unprivileged user without password prompts.
+- **🪞 Flip, Mirror & Invert**:
+  - **Horizontal Mirror**: Natural webcam selfie orientation.
+  - **Vertical Flip (180°)**: Correct upside-down tripod mountings.
+  - **Color Invert (Negative)**: Real-time hardware ffmpeg negative filter.
 - **⚡ Auto-Detaching & Clean Teardown**:
-  - When closing the GUI, pressing `Escape`, or pressing **ANY KEY** in the Terminal TUI dashboard, the virtual video device is safely detached and processes are cleaned up instantly.
-- **🎨 Omarchy Desktop Native**:
-  - Reads live Omarchy accent colors (`~/.local/state/omarchy/current/theme/colors.toml`).
-  - Integrated into the **Quickshell Omarchy Menu** (`Super + Space` -> search "webcam" or "phonecam").
-  - Desktop `.desktop` entry with vector SVG and 512x512 PNG app icons.
+  - Pressing **ANY KEY** in the terminal dashboard or closing the GUI instantly terminates `scrcpy` and cleanly unloads `/dev/video10`.
 
 ---
 
 ## 🛠️ Requirements & Dependencies
 
-PhoneCam is optimized for Arch Linux and Omarchy:
-
-| Dependency | Purpose | Arch Package |
-|------------|---------|--------------|
+| Dependency | Purpose | Arch Linux Package |
+|---|---|---|
 | `rust` & `cargo` | Compilation | `pacman -S rust` |
-| `scrcpy` | High-performance Android video streaming | `pacman -S scrcpy` |
-| `android-tools` | ADB device communication | `pacman -S android-tools` |
+| `scrcpy` | Android camera video capture engine | `pacman -S scrcpy` |
+| `android-tools` | ADB communication | `pacman -S android-tools` |
 | `v4l2loopback-dkms` | Kernel virtual video device | `pacman -S v4l2loopback-dkms` |
-| `qt6-declarative` | QML engine & runtime (`qml6`) | `pacman -S qt6-declarative` |
+| `qt6-declarative` | QML runtime (`qml6`) | `pacman -S qt6-declarative` |
 | `qt6-quickcontrols2` | Modern UI Controls | `pacman -S qt6-quickcontrols2` |
-| `ffmpeg` | Inversion filter & video pipeline | `pacman -S ffmpeg` |
+| `ffmpeg` | Inversion stream filter | `pacman -S ffmpeg` |
 
 ---
 
 ## 📦 Installation
-
-### Quick Install (Recommended)
-
-From the project root:
 
 ```bash
 cd ~/dev/phonecam
 ./scripts/install.sh
 ```
 
-The script will:
-1. Compile the optimized release binary (`cargo build --release`).
-2. Install the binary to `/usr/local/bin/phonecam` and `~/.local/bin/phonecam`.
-3. Install the Qt Quick QML interface to `/usr/local/share/phonecam/ui/`.
-4. Register the `.desktop` launcher and application icons.
-5. Configure passwordless `v4l2loopback` management in `/etc/sudoers.d/phonecam-v4l2loopback`.
-6. Add shortcut actions into `~/.config/omarchy/extensions/omarchy-menu.jsonc`.
-
-### Arch Linux Package (PKGBUILD)
-
-```bash
-cd ~/dev/phonecam/pkgbuild
-makepkg -fsi
-```
+The script:
+1. Compiles the optimized release binary (`cargo build --release`).
+2. Installs `/usr/local/bin/phonecam` and `~/.local/bin/phonecam`.
+3. Installs QML UI files to `/usr/local/share/phonecam/ui/`.
+4. Registers `.desktop` launcher and scalable icons.
+5. Configures one-time root permissions (`modules-load.d`, `modprobe.d`, `udev`, and `sudoers`).
+6. Configures the **Omarchy Menu** (`Super + Space` -> search `PhoneCam` or `webcam`).
 
 ---
 
 ## 🎮 Usage
 
-### 1. Launch the Qt Quick GUI
-
-Simply run:
+### Launch GUI
 ```bash
 phonecam
 ```
-Or launch **PhoneCam** from the Omarchy application launcher or the Omarchy menu (`Super + Space` -> type `webcam`).
+Or summon from the Omarchy Menu: `Super + Space` -> search **PhoneCam**.
 
-### 2. Interactive Terminal Dashboard (TUI)
-
+### Interactive Terminal Dashboard (TUI)
 ```bash
 phonecam --tui
 ```
-Runs a real-time ANSI terminal dashboard displaying phone status, battery, active camera settings, and video node.  
-**Press ANY key (or `q` / `Ctrl+C`) to instantly stop and auto-detach the virtual device.**
+*Press ANY key (or 'q' / Ctrl+C) to stop and auto-detach the virtual device.*
 
-### 3. Headless CLI Streaming
-
+### CLI Commands
 ```bash
-# Start streaming rear camera in 1080p
+# Start streaming in headless mode
 phonecam --start
 
-# Start front camera mirrored in 720p
-phonecam --start --facing front --mirror --res 1280x720
+# Start front camera mirrored in 720p with 16:9 crop
+phonecam --start --facing front --mirror --res 1280x720 --camera-ar 16:9
 
-# Query connected phone cameras
+# Inspect connected cameras
 phonecam --list-cameras
 
-# Detach virtual camera node manually
+# Inspect status
+phonecam --status
+
+# Detach virtual camera manually
 phonecam --detach
 ```
 
 ---
 
-## ⌨️ Keyboard Shortcuts
+## 🧪 Testing & E2E Verification
 
-| Shortcut | Action |
-|----------|--------|
-| `Space` | Toggle Webcam Start / Stop |
-| `Escape` | Stop streaming & close application |
-| `q` | Stop streaming & detach |
-| `Ctrl+C` | Graceful shutdown & virtual device unload |
+PhoneCam features a comprehensive test suite including **fake phone E2E tests** that mock ADB and scrcpy without needing physical hardware:
 
----
+```bash
+# Run all unit and integration tests
+cargo test --all-targets
 
-## 🏗️ Repository Layout
+# Run Fake Phone E2E test suite
+cargo test --test fake_phone_e2e
 
-```text
-phonecam/
-├── Cargo.toml                # Rust crate manifest & dependencies
-├── assets/
-│   ├── phonecam.svg          # Master scalable vector logo
-│   └── phonecam.png          # 512x512 rendered raster icon
-├── pkgbuild/
-│   ├── PKGBUILD              # Arch Linux package specification
-│   └── phonecam.desktop      # Desktop application entry
-├── scripts/
-│   ├── install.sh            # Complete system installer
-│   └── uninstall.sh          # Clean uninstaller
-├── src/
-│   ├── main.rs               # Entry point, CLI argument parsing, runtime mode
-│   ├── config.rs             # Configuration models & orientation calculations
-│   ├── adb.rs                # ADB detection, battery polling, camera enumeration
-│   ├── v4l2.rs               # v4l2loopback setup, permissions, teardown
-│   ├── pipeline.rs           # scrcpy/ffmpeg stream management & filters
-│   ├── server.rs             # Internal HTTP REST IPC server for Qt UI
-│   ├── tui.rs                # Terminal dashboard with crossterm raw listener
-│   └── util.rs               # Privilege elevation & Omarchy theme detection
-├── ui/
-│   └── Main.qml              # Omarchy-styled Qt Quick application window
-├── README.md                 # Project documentation
-├── AGENTS.md                 # Contributor and AI Agent guidelines
-└── LICENSE                   # MIT License
+# Run complete package lifecycle verification
+./tests/test-package-e2e.sh
+
+# Run code coverage report
+cargo llvm-cov --summary-only
 ```
 
 ---

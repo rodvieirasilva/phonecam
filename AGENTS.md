@@ -51,7 +51,8 @@ phonecam/
 │   ├── install.sh            # Complete local build & system installation
 │   └── uninstall.sh          # System uninstaller
 ├── src/
-│   ├── main.rs               # CLI argument parser (Clap), mode dispatcher
+│   ├── main.rs               # Entry point, mode dispatcher
+│   ├── cli.rs                # CLI argument parser (Clap)
 │   ├── config.rs             # Configuration models, scrcpy flag generators
 │   ├── adb.rs                # ADB device detection, status polling, battery
 │   ├── v4l2.rs               # Kernel module setup, permissions, teardown
@@ -60,7 +61,20 @@ phonecam/
 │   ├── tui.rs                # Crossterm terminal UI with any-key auto-detach
 │   └── util.rs               # Privilege escalation & Omarchy theme detection
 ├── ui/
-│   └── Main.qml              # Qt Quick ApplicationWindow layout & controls
+│   ├── Main.qml              # Qt Quick ApplicationWindow layout & controls
+│   ├── Theme.qml             # Dynamic theme switcher and palette presets
+│   └── qmldir                # QML module definition
+├── tests/
+│   ├── adb_tests.rs          # ADB device & camera parsing tests
+│   ├── cli_tests.rs          # CLI flag & parser tests
+│   ├── config_tests.rs       # Config defaults & serialization tests
+│   ├── fake_phone_e2e.rs     # Mock phone end-to-end integration tests
+│   ├── pipeline_tests.rs     # Stream argument & lifecycle tests
+│   ├── server_tests.rs       # Axum REST API endpoint tests
+│   ├── util_tests.rs         # Theme & environment utility tests
+│   ├── v4l2_tests.rs         # Device node & module tests
+│   ├── test-e2e.sh           # CLI, desktop & asset E2E script
+│   └── test-package-e2e.sh   # Full package lifecycle test runner
 ├── README.md                 # User-facing documentation
 ├── AGENTS.md                 # Contributor & Agent instructions (this file)
 └── LICENSE                   # MIT License

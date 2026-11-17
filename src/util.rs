@@ -1,7 +1,7 @@
+use anyhow::{Context, Result};
 use std::fs;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
-use anyhow::{Context, Result};
 
 /// Get the user's home directory.
 pub fn home_dir() -> PathBuf {
@@ -19,7 +19,10 @@ pub fn get_sudo_password() -> Option<String> {
         for line in content.lines() {
             let line = line.trim();
             if line.starts_with("LINUX_PASSWORD=") {
-                let pass = line.trim_start_matches("LINUX_PASSWORD=").trim_matches('"').trim_matches('\'');
+                let pass = line
+                    .trim_start_matches("LINUX_PASSWORD=")
+                    .trim_matches('"')
+                    .trim_matches('\'');
                 if !pass.is_empty() {
                     return Some(pass.to_string());
                 }
@@ -47,23 +50,21 @@ pub fn run_elevated(cmd: &str, args: &[&str]) -> Result<String> {
     }
 
     // Try passwordless sudo first
-    let test_sudo = Command::new("sudo")
-        .args(["-n", "true"])
-        .output();
+    let test_sudo = Command::new("sudo").args(["-n", "true"]).output();
 
-    if let Ok(res) = test_sudo {
-        if res.status.success() {
-            let output = Command::new("sudo")
-                .arg(cmd)
-                .args(args)
-                .output()
-                .with_context(|| format!("Failed to run sudo: {} {:?}", cmd, args))?;
-            if output.status.success() {
-                return Ok(String::from_utf8_lossy(&output.stdout).to_string());
-            } else {
-                let err = String::from_utf8_lossy(&output.stderr).to_string();
-                anyhow::bail!("Elevated command failed: {}", err);
-            }
+    if let Ok(res) = test_sudo
+        && res.status.success()
+    {
+        let output = Command::new("sudo")
+            .arg(cmd)
+            .args(args)
+            .output()
+            .with_context(|| format!("Failed to run sudo: {} {:?}", cmd, args))?;
+        if output.status.success() {
+            return Ok(String::from_utf8_lossy(&output.stdout).to_string());
+        } else {
+            let err = String::from_utf8_lossy(&output.stderr).to_string();
+            anyhow::bail!("Elevated command failed: {}", err);
         }
     }
 
@@ -84,7 +85,8 @@ pub fn run_elevated(cmd: &str, args: &[&str]) -> Result<String> {
             let _ = stdin.write_all(b"\n");
         }
 
-        let output = child.wait_with_output()
+        let output = child
+            .wait_with_output()
             .with_context(|| format!("Failed waiting for sudo -S {} {:?}", cmd, args))?;
 
         if output.status.success() {
@@ -107,7 +109,11 @@ pub fn run_elevated(cmd: &str, args: &[&str]) -> Result<String> {
         }
     }
 
-    anyhow::bail!("No privilege escalation mechanism succeeded for: {} {:?}", cmd, args);
+    anyhow::bail!(
+        "No privilege escalation mechanism succeeded for: {} {:?}",
+        cmd,
+        args
+    );
 }
 
 /// Helper to read Omarchy theme accent color from disk
@@ -117,7 +123,13 @@ pub fn get_omarchy_accent() -> String {
         for line in content.lines() {
             let line = line.trim();
             if line.starts_with("accent =") || line.starts_with("accent=") {
-                let val = line.split('=').nth(1).unwrap_or("").trim().trim_matches('"').trim_matches('\'');
+                let val = line
+                    .split('=')
+                    .nth(1)
+                    .unwrap_or("")
+                    .trim()
+                    .trim_matches('"')
+                    .trim_matches('\'');
                 if !val.is_empty() {
                     return val.to_string();
                 }

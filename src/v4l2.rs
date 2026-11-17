@@ -1,7 +1,7 @@
+use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use anyhow::{Context, Result};
 use tracing::{info, warn};
 
 use crate::util::run_elevated;
@@ -24,19 +24,29 @@ pub fn is_device_present(video_nr: u32) -> bool {
     Path::new(&path).exists()
 }
 
-/// Ensure that v4l2loopback is loaded and the video device is ready
+/// Ensure that v4l2loopback is loaded and the video device is ready.
+/// If the device already exists (e.g. from boot autoload or udev rule),
+/// no root / sudo elevation is triggered.
 pub fn setup_loopback_device(video_nr: u32, card_label: &str) -> Result<PathBuf> {
     let dev_path = format!("/dev/video{}", video_nr);
     let dev_buf = PathBuf::from(&dev_path);
 
     if is_device_present(video_nr) {
         info!("Virtual video device {} already exists", dev_path);
-        // Ensure read/write permissions
+        // If writable by current user, return immediately with zero root execution
+        if let Ok(file) = fs::OpenOptions::new().write(true).open(&dev_buf) {
+            drop(file);
+            return Ok(dev_buf);
+        }
+        // Otherwise fix permissions via one-time elevated chmod
         let _ = run_elevated("chmod", &["666", &dev_path]);
         return Ok(dev_buf);
     }
 
-    info!("Loading v4l2loopback kernel module for device {} ('{}')...", dev_path, card_label);
+    info!(
+        "Loading v4l2loopback kernel module for device {} ('{}')...",
+        dev_path, card_label
+    );
 
     let nr_arg = format!("video_nr={}", video_nr);
     let label_arg = format!("card_label={}", card_label);
@@ -50,7 +60,8 @@ pub fn setup_loopback_device(video_nr: u32, card_label: &str) -> Result<PathBuf>
             &label_arg,
             "exclusive_caps=1",
         ],
-    ).context("Failed to modprobe v4l2loopback. Is v4l2loopback-dkms installed?")?;
+    )
+    .context("Failed to modprobe v4l2loopback. Is v4l2loopback-dkms installed?")?;
 
     info!("Module loaded: {}", output.trim());
 
@@ -66,7 +77,7 @@ pub fn setup_loopback_device(video_nr: u32, card_label: &str) -> Result<PathBuf>
         anyhow::bail!("Virtual device {} was not created after modprobe", dev_path);
     }
 
-    // Set permissions so regular users can write video frames
+    // Set permissions so regular users can write video frames without root
     let _ = run_elevated("chmod", &["666", &dev_path]);
 
     info!("Virtual device {} initialized successfully", dev_path);
@@ -101,7 +112,6 @@ pub fn detach_loopback_device(video_nr: u32) -> Result<()> {
         }
         Err(e) => {
             warn!("rmmod v4l2loopback returned: {}", e);
-            // Non-fatal if module is in use by another sink
             Ok(())
         }
     }

@@ -1,12 +1,13 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AppConfig {
     pub video_nr: u32,
     pub card_label: String,
     pub facing: String,
     pub camera_id: Option<u32>,
     pub resolution: String,
+    pub camera_ar: Option<String>,
     pub crop: Option<String>,
     pub fps: u32,
     pub flip_h: bool,
@@ -25,6 +26,7 @@ impl Default for AppConfig {
             facing: "back".to_string(),
             camera_id: None,
             resolution: "1920x1080".to_string(),
+            camera_ar: None,
             crop: None,
             fps: 30,
             flip_h: false,
