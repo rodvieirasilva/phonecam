@@ -229,7 +229,6 @@ For end-to-end automation and testing, all interactive elements in `src/ui/gtk_a
 | `switch-torch` | Switch | Flashlight / studio torch |
 | `switch-auto-start` | Switch | Auto-starts stream on launch |
 | `btn-preview` | Button | Opens live preview window for `/dev/video10` |
-| `btn-launch-camera` | Button | Launches native Camera app (`snapshot`) |
 | `btn-stream-action` | Button | Starts / stops `/dev/video10` stream |
 | `btn-refresh` | Button | Manually polls ADB device status & logs |
 | `input-wifi-address` | TextField | Enters phone IP:Port for wireless ADB |

@@ -66,6 +66,7 @@ mkdir -p "$MOCK_BIN_DIR"
 cleanup() {
     # Kill any dangling phonecam or ffmpeg processes
     killall -q phonecam 2>/dev/null || true
+    fuser -k /dev/video10 2>/dev/null || true
     rm -rf "$TMP_DIR"
 }
 trap cleanup EXIT
@@ -182,6 +183,8 @@ verify_phonecam_stream() {
     echo "==> Testing: $test_name..."
     echo "    Command: $PHONECAM_BIN ${phonecam_args[*]}"
 
+    fuser -k /dev/video10 2>/dev/null || true
+
     # Launch PhoneCam in background
     "$PHONECAM_BIN" "${phonecam_args[@]}" >/dev/null 2>&1 &
     local pc_pid=$!
@@ -189,15 +192,24 @@ verify_phonecam_stream() {
     # Allow stream to initialize and fill v4l2 buffer
     sleep 1.2
 
-    # Capture 1 single frame from /dev/video10
-    rm -f "$CAPTURED_FRAME" "$REVERSED_FRAME"
-    ffmpeg -nostdin -loglevel error -y -f v4l2 -i /dev/video10 -frames:v 1 -update 1 "$CAPTURED_FRAME" >/dev/null 2>&1 || true
+    local captured=false
+    for _ in {1..10}; do
+        rm -f "$CAPTURED_FRAME" "$REVERSED_FRAME"
+        if ffmpeg -nostdin -loglevel error -y -f v4l2 -i /dev/video10 -frames:v 1 -update 1 "$CAPTURED_FRAME" >/dev/null 2>&1; then
+            if [ -f "$CAPTURED_FRAME" ] && [ -s "$CAPTURED_FRAME" ]; then
+                captured=true
+                break
+            fi
+        fi
+        sleep 0.3
+    done
 
     # Terminate PhoneCam cleanly
     kill -TERM "$pc_pid" 2>/dev/null || true
     wait "$pc_pid" 2>/dev/null || true
+    fuser -k /dev/video10 2>/dev/null || true
 
-    if [ ! -f "$CAPTURED_FRAME" ] || [ ! -s "$CAPTURED_FRAME" ]; then
+    if [ "$captured" != true ] || [ ! -f "$CAPTURED_FRAME" ] || [ ! -s "$CAPTURED_FRAME" ]; then
         echo "  [FAIL] Frame capture from /dev/video10 failed (empty or missing frame)"
         return 1
     fi

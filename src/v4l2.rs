@@ -58,7 +58,8 @@ pub fn setup_loopback_device(video_nr: u32, card_label: &str) -> Result<PathBuf>
             "devices=1",
             &nr_arg,
             &label_arg,
-            "exclusive_caps=1",
+            "exclusive_caps=0",
+            "max_buffers=2",
         ],
     )
     .context("Failed to modprobe v4l2loopback. Is v4l2loopback-dkms installed?")?;
@@ -80,8 +81,38 @@ pub fn setup_loopback_device(video_nr: u32, card_label: &str) -> Result<PathBuf>
     // Set permissions so regular users can write video frames without root
     let _ = run_elevated("chmod", &["666", &dev_path]);
 
+    set_as_default_camera();
+
     info!("Virtual device {} initialized successfully", dev_path);
     Ok(dev_buf)
+}
+
+/// Automatically configure PhoneCam as the default camera in PipeWire / WirePlumber
+pub fn set_as_default_camera() {
+    if let Ok(output) = Command::new("wpctl").arg("status").output() {
+        let text = String::from_utf8_lossy(&output.stdout);
+        let mut in_sources = false;
+        for line in text.lines() {
+            if line.contains("Sources:") {
+                in_sources = true;
+                continue;
+            }
+            if in_sources && (line.contains("Filters:") || line.contains("Streams:") || line.contains("Settings")) {
+                break;
+            }
+            if in_sources && line.contains("PhoneCam") {
+                for part in line.split_whitespace() {
+                    let cleaned = part.trim_end_matches('.');
+                    if let Ok(id) = cleaned.parse::<u32>() {
+                        let _ = Command::new("wpctl")
+                            .args(["set-default", &id.to_string()])
+                            .output();
+                        break;
+                    }
+                }
+            }
+        }
+    }
 }
 
 /// Safely unload the v4l2loopback module and detach the virtual device

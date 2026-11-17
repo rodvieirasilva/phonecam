@@ -42,9 +42,7 @@ pub fn build_scrcpy_args(config: &AppConfig, sink_or_record: &str, is_pipe: bool
     if config.torch {
         args.push("--camera-torch".to_string());
     }
-    if !config.preview {
-        args.push("--no-playback".to_string());
-    }
+    args.push("--no-playback".to_string());
 
     if is_pipe {
         args.push("-r".to_string());

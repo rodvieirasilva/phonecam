@@ -200,7 +200,6 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
         .tooltip_text("Refresh device & logs")
         .valign(gtk4::Align::Center)
         .build();
-    header.pack_end(&refresh_btn);
 
     let page = adw::PreferencesPage::new();
 
@@ -231,20 +230,9 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
         .tooltip_text("Open real-time desktop preview of /dev/video10")
         .build();
 
-    let btn_launch_camera = gtk4::Button::builder()
-        .name("btn-launch-camera")
-        .label("Camera App")
-        .valign(gtk4::Align::Center)
-        .tooltip_text("Open native Camera app (Snapshot) to test webcam")
-        .build();
-    btn_launch_camera.connect_clicked(|_| {
-        let _ = std::process::Command::new("snapshot").spawn();
-    });
-
     let stream_btn_box = gtk4::Box::new(gtk4::Orientation::Horizontal, 8);
     stream_btn_box.append(&btn_stream_action);
     stream_btn_box.append(&btn_preview);
-    stream_btn_box.append(&btn_launch_camera);
     stream_row.add_suffix(&stream_btn_box);
     stream_group.add(&stream_row);
 
@@ -264,16 +252,17 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
     stream_group.add(&row_auto_start);
     page.add(&stream_group);
 
-    // 2. Device Status Group
+    // 2. Smartphone Device & Wireless Connection Group
     let device_group = adw::PreferencesGroup::builder()
         .title("Smartphone Device")
+        .description("USB-C or Wireless ADB Connection")
         .name("group-device")
         .build();
 
     let device_row = adw::ActionRow::builder()
         .name("text-device-name")
         .title("Detecting Smartphone...")
-        .subtitle("Connect phone via USB-C &amp; Enable USB Debugging")
+        .subtitle("Connect phone via USB-C or Wi-Fi ADB")
         .build();
 
     let battery_label = gtk4::Label::builder()
@@ -282,16 +271,12 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
         .css_classes(["dim-label"])
         .valign(gtk4::Align::Center)
         .build();
-    device_row.add_suffix(&battery_label);
-    device_group.add(&device_row);
-    page.add(&device_group);
 
-    // 2. Wireless ADB over Wi-Fi Group
-    let wifi_group = adw::PreferencesGroup::builder()
-        .title("Wireless ADB over Wi-Fi")
-        .description("Untethered studio camera streaming")
-        .name("group-wifi")
-        .build();
+    let dev_suffix_box = gtk4::Box::new(gtk4::Orientation::Horizontal, 8);
+    dev_suffix_box.append(&battery_label);
+    dev_suffix_box.append(&refresh_btn);
+    device_row.add_suffix(&dev_suffix_box);
+    device_group.add(&device_row);
 
     let wifi_entry = gtk4::Entry::builder()
         .name("input-wifi-address")
@@ -302,11 +287,11 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
         .build();
 
     let wifi_entry_row = adw::ActionRow::builder()
-        .title("Phone IP:Port")
+        .title("Wireless IP:Port")
         .activatable_widget(&wifi_entry)
         .build();
     wifi_entry_row.add_suffix(&wifi_entry);
-    wifi_group.add(&wifi_entry_row);
+    device_group.add(&wifi_entry_row);
 
     let wifi_actions_row = adw::ActionRow::builder()
         .name("row-wifi-actions")
@@ -331,7 +316,7 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
     wifi_btn_box.append(&btn_wifi_tcpip);
     wifi_btn_box.append(&btn_wifi_connect);
     wifi_actions_row.add_suffix(&wifi_btn_box);
-    wifi_group.add(&wifi_actions_row);
+    device_group.add(&wifi_actions_row);
 
     let doc_link_row = adw::ActionRow::builder()
         .name("row-adb-docs")
@@ -346,15 +331,15 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
         .valign(gtk4::Align::Center)
         .build();
     doc_link_row.add_suffix(&doc_link_btn);
-    wifi_group.add(&doc_link_row);
+    device_group.add(&doc_link_row);
 
     let wifi_status_row = adw::ActionRow::builder()
         .name("text-wifi-status")
         .title("Wireless Status")
         .subtitle("Connect phone via USB once and click 'Enable USB TCP/IP', then unplug cable and click 'Connect Wi-Fi'.")
         .build();
-    wifi_group.add(&wifi_status_row);
-    page.add(&wifi_group);
+    device_group.add(&wifi_status_row);
+    page.add(&device_group);
 
     // 3. Camera Selection & Sensor Group
     let camera_group = adw::PreferencesGroup::builder()
@@ -772,6 +757,9 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
                                 }
                             }
                         }
+
+                        // Allow ADB wireless handshake to establish before starting scrcpy
+                        std::thread::sleep(std::time::Duration::from_millis(600));
                     }
                 }
 
@@ -862,52 +850,56 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
 
     let ssh_preview = start_stop_handler.clone();
     let is_streaming_for_preview = is_streaming_state.clone();
+    let preview_child: Rc<RefCell<Option<std::process::Child>>> = Rc::new(RefCell::new(None));
+    let preview_child_clone = preview_child.clone();
+
     btn_preview.connect_clicked(move |_| {
-        let is_running = is_streaming_for_preview.load(Ordering::SeqCst);
-        if is_running {
-            // Already streaming to /dev/video10: spawn viewer directly!
-            let _ = if which::which("mpv").is_ok() {
+        // Toggle off if already running
+        if let Some(mut child) = preview_child_clone.borrow_mut().take() {
+            if child.try_wait().ok() == Some(None) {
+                let _ = child.kill();
+                let _ = child.wait();
+                return;
+            }
+        }
+
+        let spawn_viewer = || -> Option<std::process::Child> {
+            if which::which("mpv").is_ok() {
                 std::process::Command::new("mpv")
-                    .args(["--title=PhoneCam Preview", "av://v4l2:/dev/video10"])
+                    .args([
+                        "--title=PhoneCam Preview",
+                        "--profile=low-latency",
+                        "--untimed",
+                        "av://v4l2:/dev/video10",
+                    ])
                     .spawn()
-            } else if which::which("snapshot").is_ok() {
-                std::process::Command::new("snapshot").spawn()
+                    .ok()
             } else if which::which("ffplay").is_ok() {
                 std::process::Command::new("ffplay")
                     .args([
                         "-window_title",
                         "PhoneCam Preview",
+                        "-fflags",
+                        "nobuffer",
                         "-f",
                         "v4l2",
                         "/dev/video10",
                     ])
                     .spawn()
+                    .ok()
             } else {
-                Err(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    "No viewer found",
-                ))
-            };
+                None
+            }
+        };
+
+        let is_running = is_streaming_for_preview.load(Ordering::SeqCst);
+        if is_running {
+            *preview_child_clone.borrow_mut() = spawn_viewer();
         } else {
             ssh_preview();
-            glib::timeout_add_local_once(std::time::Duration::from_millis(600), || {
-                let _ = if which::which("mpv").is_ok() {
-                    std::process::Command::new("mpv")
-                        .args(["--title=PhoneCam Preview", "av://v4l2:/dev/video10"])
-                        .spawn()
-                } else if which::which("snapshot").is_ok() {
-                    std::process::Command::new("snapshot").spawn()
-                } else {
-                    std::process::Command::new("ffplay")
-                        .args([
-                            "-window_title",
-                            "PhoneCam Preview",
-                            "-f",
-                            "v4l2",
-                            "/dev/video10",
-                        ])
-                        .spawn()
-                };
+            let pc_ref = preview_child_clone.clone();
+            glib::timeout_add_local_once(std::time::Duration::from_millis(800), move || {
+                *pc_ref.borrow_mut() = spawn_viewer();
             });
         }
     });
@@ -1292,9 +1284,13 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
         });
     }
 
-    // Window Close Request: ensure clean teardown of /dev/video10
+    // Window Close Request: ensure clean teardown of /dev/video10 and preview player
+    let preview_child_close = preview_child.clone();
     window.connect_close_request(move |_| {
         let _ = &theme_monitors;
+        if let Some(mut child) = preview_child_close.borrow_mut().take() {
+            let _ = child.kill();
+        }
         let _ = http_post(port, "/api/stop", None);
         glib::Propagation::Proceed
     });

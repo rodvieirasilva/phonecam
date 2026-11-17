@@ -109,7 +109,7 @@ rm -f "$TMP_MOD_LOAD"
 # 2. Module default parameters
 MODPROBE_CONF="/etc/modprobe.d/v4l2loopback.conf"
 TMP_MOD_CONF="/tmp/phonecam_modprobe_conf"
-echo 'options v4l2loopback devices=1 video_nr=10 card_label="PhoneCam Virtual Camera" exclusive_caps=1' > "$TMP_MOD_CONF"
+echo 'options v4l2loopback devices=1 video_nr=10 card_label="PhoneCam Virtual Camera" exclusive_caps=0 max_buffers=2' > "$TMP_MOD_CONF"
 run_sudo cp "$TMP_MOD_CONF" "$MODPROBE_CONF" 2>/dev/null || true
 rm -f "$TMP_MOD_CONF"
 

@@ -116,7 +116,7 @@ phonecam/
     - `"combo-crop"`: Crop/framing preset dropdown
     - `"combo-rotation"`: Rotation dropdown (0°, 90°, 180°, 270°)
     - `"switch-flip-h"`, `"switch-invert"`, `"switch-torch"`, `"switch-auto-start"`: Feature switches
-    - `"btn-preview"`, `"btn-stream-action"`, `"btn-launch-camera"`: Primary action buttons
+    - `"btn-preview"`, `"btn-stream-action"`: Primary action buttons
     - `"btn-refresh"`: Status & logs refresh button
     - `"input-wifi-address"`: IP:port input for ADB over Wi-Fi
     - `"btn-wifi-connect"`: Connect Wi-Fi ADB button

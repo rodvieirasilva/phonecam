@@ -108,6 +108,18 @@ async fn start_stream(
     State(state): State<Arc<AppState>>,
     Json(config): Json<AppConfig>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    // If no device is currently connected, attempt auto-connecting via saved Wi-Fi IP
+    if let Ok(dev) = crate::adb::detect_device() {
+        if dev.status == crate::adb::DeviceStatus::NotFound {
+            let ucfg = crate::config::UserStateConfig::load();
+            let ip = ucfg.last_ip.trim();
+            if !ip.is_empty() {
+                let _ = crate::adb::connect_wifi(ip);
+                tokio::time::sleep(tokio::time::Duration::from_millis(600)).await;
+            }
+        }
+    }
+
     let mut mgr = state.stream_mgr.lock().unwrap();
     match mgr.start(config) {
         Ok(_) => Ok(Json(

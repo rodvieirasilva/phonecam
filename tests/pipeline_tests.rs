@@ -42,7 +42,7 @@ fn test_build_scrcpy_args_custom() {
     assert!(args.contains(&"--crop=1280:720:0:0".to_string()));
     assert!(args.contains(&"--capture-orientation=flip0".to_string()));
     assert!(args.contains(&"--camera-torch".to_string()));
-    assert!(!args.contains(&"--no-playback".to_string())); // Preview enabled
+    assert!(args.contains(&"--no-playback".to_string())); // Scrcpy always runs headless
     assert!(args.contains(&"--v4l2-sink=/dev/video10".to_string()));
 }
 

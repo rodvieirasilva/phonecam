@@ -183,8 +183,6 @@ async fn test_gtk_ui_widget_tree_and_interactions() {
         find_widget_by_name(root, "switch-auto-start").expect("switch-auto-start must exist");
     let doc_link: gtk4::LinkButton =
         find_widget_by_name(root, "link-adb-docs").expect("link-adb-docs must exist");
-    let btn_launch_camera: gtk4::Button =
-        find_widget_by_name(root, "btn-launch-camera").expect("btn-launch-camera must exist");
     let btn_preview: gtk4::Button =
         find_widget_by_name(root, "btn-preview").expect("btn-preview must exist");
     let btn_stream: gtk4::Button =
@@ -204,7 +202,6 @@ async fn test_gtk_ui_widget_tree_and_interactions() {
     assert_eq!(btn_stream.label().as_deref(), Some("Start Webcam"));
     assert_eq!(stream_status.title(), "VIRTUAL CAMERA OFFLINE");
     assert_eq!(doc_link.label().as_deref(), Some("View Guide ↗"));
-    assert_eq!(btn_launch_camera.label().as_deref(), Some("Camera App"));
     assert!(!switch_fliph.is_active());
     assert!(!switch_invert.is_active());
     assert_eq!(combo_res.selected(), 0);
@@ -259,9 +256,8 @@ async fn test_gtk_ui_widget_tree_and_interactions() {
     assert!(btn_camera_rear.is_sensitive());
     assert!(btn_camera_front.is_sensitive());
 
-    // 8. Simulate Preview button & Camera App button clicks
+    // 8. Simulate Preview button click
     btn_preview.emit_clicked();
-    btn_launch_camera.emit_clicked();
 
     // 9. Simulate Refresh button click
     btn_refresh.emit_clicked();
