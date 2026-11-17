@@ -88,4 +88,8 @@ fn test_stream_manager_lifecycle() {
     // Logs query
     let logs = mgr.get_recent_logs(10);
     assert!(logs.is_empty() || !logs.is_empty());
+
+    // Standby transition
+    mgr.exit_standby();
+    assert_eq!(*mgr.state(), phonecam::pipeline::StreamState::Stopped);
 }

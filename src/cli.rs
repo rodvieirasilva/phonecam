@@ -76,6 +76,14 @@ pub struct Cli {
     #[arg(long)]
     pub torch: bool,
 
+    /// Connect to smartphone over Wi-Fi via ADB (e.g. 192.168.1.50:5555)
+    #[arg(long)]
+    pub wifi: Option<String>,
+
+    /// Enable ADB TCP/IP mode on USB device (default port: 5555)
+    #[arg(long)]
+    pub tcpip: Option<Option<u16>>,
+
     /// Virtual video device number (e.g. 10 for /dev/video10)
     #[arg(long, default_value_t = 10)]
     pub video_nr: u32,

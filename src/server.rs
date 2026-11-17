@@ -39,6 +39,11 @@ pub struct CameraSelectPayload {
     pub facing: String,
 }
 
+#[derive(Deserialize)]
+pub struct WifiConnectPayload {
+    pub address: String,
+}
+
 pub fn create_router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/api/status", get(get_status))
@@ -49,6 +54,8 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/api/toggle-invert", post(toggle_invert))
         .route("/api/set-facing", post(set_facing))
         .route("/api/select-camera", post(select_camera))
+        .route("/api/connect-wifi", post(connect_wifi_endpoint))
+        .route("/api/enable-tcpip", post(enable_tcpip_endpoint))
         .route("/api/logs", get(get_logs))
         .layer(CorsLayer::permissive())
         .with_state(state)
@@ -56,7 +63,9 @@ pub fn create_router(state: Arc<AppState>) -> Router {
 
 async fn get_status(State(state): State<Arc<AppState>>) -> Json<StatusResponse> {
     let mut mgr = state.stream_mgr.lock().unwrap();
-    let is_streaming = mgr.is_running();
+    let _ = mgr.check_and_recover();
+    let is_streaming =
+        mgr.is_running() || mgr.state() == &crate::pipeline::StreamState::StandbyWaitingReconnect;
     let config = mgr.current_config().clone();
     drop(mgr);
 
@@ -202,4 +211,20 @@ async fn get_logs(State(state): State<Arc<AppState>>) -> Json<Vec<String>> {
     let mgr = state.stream_mgr.lock().unwrap();
     let logs = mgr.get_recent_logs(60);
     Json(logs)
+}
+
+async fn connect_wifi_endpoint(
+    Json(payload): Json<WifiConnectPayload>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    match crate::adb::connect_wifi(&payload.address) {
+        Ok(msg) => Ok(Json(serde_json::json!({ "success": true, "message": msg }))),
+        Err(e) => Err((StatusCode::BAD_REQUEST, e.to_string())),
+    }
+}
+
+async fn enable_tcpip_endpoint() -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    match crate::adb::enable_tcpip(5555) {
+        Ok(msg) => Ok(Json(serde_json::json!({ "success": true, "message": msg }))),
+        Err(e) => Err((StatusCode::BAD_REQUEST, e.to_string())),
+    }
 }

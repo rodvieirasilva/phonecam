@@ -83,4 +83,10 @@ fn test_cli_action_flags() {
 
     let cli_start = Cli::try_parse_from(["phonecam", "--start"]).unwrap();
     assert!(cli_start.start);
+
+    let cli_wifi = Cli::try_parse_from(["phonecam", "--wifi", "192.168.1.100:5555"]).unwrap();
+    assert_eq!(cli_wifi.wifi, Some("192.168.1.100:5555".to_string()));
+
+    let cli_tcpip = Cli::try_parse_from(["phonecam", "--tcpip"]).unwrap();
+    assert_eq!(cli_tcpip.tcpip, Some(None));
 }

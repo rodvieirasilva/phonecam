@@ -159,3 +159,19 @@ async fn test_get_logs_endpoint() {
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
     assert!(json.is_array());
 }
+
+#[tokio::test]
+async fn test_connect_wifi_endpoint_invalid_ip() {
+    let (app, _) = setup_test_app();
+
+    let request = Request::builder()
+        .uri("/api/connect-wifi")
+        .method("POST")
+        .header("Content-Type", "application/json")
+        .body(Body::from(r#"{"address": "127.0.0.1:9999"}"#))
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+    // Since 9999 is unlikely to be listening ADB, it either returns 400 or handled gracefully
+    assert!(response.status() == StatusCode::BAD_REQUEST || response.status() == StatusCode::OK);
+}

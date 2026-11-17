@@ -268,3 +268,39 @@ pub fn list_cameras(serial: Option<&str>) -> Result<Vec<CameraInfo>> {
 
     Ok(parse_scrcpy_cameras(&combined))
 }
+
+/// Connect to Android device over Wi-Fi via ADB TCP/IP (e.g. "192.168.1.50:5555")
+pub fn connect_wifi(ip_port: &str) -> Result<String> {
+    let output = Command::new("adb")
+        .args(["connect", ip_port])
+        .output()
+        .context("Failed to run 'adb connect'")?;
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    if output.status.success() {
+        Ok(stdout)
+    } else {
+        anyhow::bail!(
+            "adb connect failed: {}",
+            if stderr.is_empty() { stdout } else { stderr }
+        );
+    }
+}
+
+/// Enable TCP/IP listening mode on currently connected USB device
+pub fn enable_tcpip(port: u16) -> Result<String> {
+    let output = Command::new("adb")
+        .args(["tcpip", &port.to_string()])
+        .output()
+        .context("Failed to run 'adb tcpip'")?;
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    if output.status.success() {
+        Ok(stdout)
+    } else {
+        anyhow::bail!(
+            "adb tcpip failed: {}",
+            if stderr.is_empty() { stdout } else { stderr }
+        );
+    }
+}

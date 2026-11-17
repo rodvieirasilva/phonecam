@@ -12,6 +12,7 @@ pub enum StreamState {
     Stopped,
     Starting,
     Running,
+    StandbyWaitingReconnect,
     Error(String),
 }
 
@@ -78,6 +79,7 @@ pub struct StreamManager {
     config: AppConfig,
     active_child: Option<Child>,
     ffmpeg_child: Option<Child>,
+    standby_child: Option<Child>,
     state: StreamState,
     log_file_path: String,
 }
@@ -88,6 +90,7 @@ impl StreamManager {
             config,
             active_child: None,
             ffmpeg_child: None,
+            standby_child: None,
             state: StreamState::Stopped,
             log_file_path: "/tmp/phonecam.log".to_string(),
         }
@@ -217,6 +220,8 @@ impl StreamManager {
     pub fn stop(&mut self) -> Result<()> {
         info!("Stopping camera stream...");
 
+        self.exit_standby();
+
         if let Some(mut child) = self.active_child.take() {
             let _ = child.kill();
             let _ = child.wait();
@@ -236,6 +241,79 @@ impl StreamManager {
         let _ = detach_loopback_device(self.config.video_nr);
 
         info!("Camera stream stopped and virtual device detached.");
+        Ok(())
+    }
+
+    /// Enter standby mode (e.g. when USB cable is unplugged).
+    /// Keeps /dev/video10 active with a continuous blank video feed
+    /// so client applications (OBS, Discord, Zoom) don't crash or lose the device.
+    pub fn enter_standby(&mut self) -> Result<()> {
+        if self.standby_child.is_some() {
+            return Ok(());
+        }
+
+        info!(
+            "Phone disconnected: entering standby mode with blank frame loop on {}",
+            self.config.video_device_path()
+        );
+        let dev_str = self.config.video_device_path();
+
+        let standby = Command::new("ffmpeg")
+            .args([
+                "-re",
+                "-f",
+                "lavfi",
+                "-i",
+                &format!(
+                    "color=c=black:s={}:r={}",
+                    self.config.resolution, self.config.fps
+                ),
+                "-f",
+                "v4l2",
+                "-pix_fmt",
+                "yuv420p",
+                &dev_str,
+            ])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .ok();
+
+        self.standby_child = standby;
+        self.state = StreamState::StandbyWaitingReconnect;
+        Ok(())
+    }
+
+    /// Exit standby mode and terminate the blank frame generator
+    pub fn exit_standby(&mut self) {
+        if let Some(mut child) = self.standby_child.take() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
+
+    /// Check health and perform automatic recovery when cable is reconnected
+    pub fn check_and_recover(&mut self) -> Result<()> {
+        match self.state {
+            StreamState::Running => {
+                if !self.is_running() {
+                    // scrcpy exited unexpectedly (e.g. cable unplugged)
+                    let _ = self.enter_standby();
+                }
+            }
+            StreamState::StandbyWaitingReconnect => {
+                // Poll ADB to check if smartphone has reconnected
+                if let Ok(dev) = crate::adb::detect_device()
+                    && dev.status == crate::adb::DeviceStatus::Connected
+                {
+                    info!("Phone reconnected! Stopping standby and resuming live stream...");
+                    self.exit_standby();
+                    let cfg = self.config.clone();
+                    let _ = self.start(cfg);
+                }
+            }
+            _ => {}
+        }
         Ok(())
     }
 
