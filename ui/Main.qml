@@ -4,6 +4,7 @@ import QtQuick.Layouts
 
 ApplicationWindow {
     id: window
+    objectName: "window-main"
     visible: true
     width: 700
     height: 820
@@ -348,6 +349,7 @@ ApplicationWindow {
                     Repeater {
                         model: themePresets
                         Rectangle {
+                            objectName: "swatch-container-" + index
                             width: 24
                             height: 24
                             radius: 12
@@ -356,6 +358,7 @@ ApplicationWindow {
                             border.width: accentColor === modelData.hex ? 2 : 0
 
                             MouseArea {
+                                objectName: "btn-theme-swatch-" + index
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: setCustomAccent(modelData.hex)
@@ -366,6 +369,8 @@ ApplicationWindow {
 
                 // Refresh Button
                 Button {
+                    id: refreshBtn
+                    objectName: "btn-refresh"
                     text: "🔄"
                     onClicked: {
                         fetchStatus();
@@ -411,6 +416,8 @@ ApplicationWindow {
                     ColumnLayout {
                         spacing: 2
                         Text {
+                            id: textDeviceName
+                            objectName: "text-device-name"
                             text: deviceName
                             font.pixelSize: 15
                             font.bold: true
@@ -433,6 +440,8 @@ ApplicationWindow {
                         color: "#3f3f46"
 
                         Text {
+                            id: textBattery
+                            objectName: "text-battery"
                             anchors.centerIn: parent
                             text: "🔋 " + batteryText
                             font.pixelSize: 12
@@ -481,6 +490,7 @@ ApplicationWindow {
 
                         Button {
                             id: rearBtn
+                            objectName: "btn-camera-rear"
                             Layout.fillWidth: true
                             height: 38
                             text: "📸 Rear Camera (Back)"
@@ -503,6 +513,7 @@ ApplicationWindow {
 
                         Button {
                             id: frontBtn
+                            objectName: "btn-camera-front"
                             Layout.fillWidth: true
                             height: 38
                             text: "🤳 Selfie Camera (Front)"
@@ -538,6 +549,7 @@ ApplicationWindow {
 
                         ComboBox {
                             id: cameraCombo
+                            objectName: "combo-camera-lens"
                             Layout.fillWidth: true
                             model: {
                                 var items = [];
@@ -547,7 +559,7 @@ ApplicationWindow {
                                 }
                                 return items.length > 0 ? items : ["Default Camera"];
                             }
-                            onActivated: onCameraComboSelected(index)
+                            onActivated: (index) => onCameraComboSelected(index)
                         }
                     }
                 }
@@ -590,10 +602,11 @@ ApplicationWindow {
                             }
                             ComboBox {
                                 id: resCombo
+                                objectName: "combo-resolution"
                                 Layout.fillWidth: true
                                 model: ["1920x1080 (1080p FHD)", "1280x720 (720p HD)", "3840x2160 (4K UHD)", "2560x1440 (2K QHD)"]
                                 currentIndex: currentRes === "1280x720" ? 1 : (currentRes === "3840x2160" ? 2 : 0)
-                                onActivated: {
+                                onActivated: (index) => {
                                     if (index === 0) currentRes = "1920x1080";
                                     else if (index === 1) currentRes = "1280x720";
                                     else if (index === 2) currentRes = "3840x2160";
@@ -613,6 +626,7 @@ ApplicationWindow {
                             }
                             ComboBox {
                                 id: cropCombo
+                                objectName: "combo-crop"
                                 Layout.fillWidth: true
                                 model: [
                                     "Full Sensor (Native)",
@@ -662,6 +676,7 @@ ApplicationWindow {
                             spacing: 8
                             Switch {
                                 id: flipHSwitch
+                                objectName: "switch-flip-h"
                                 checked: flipH
                                 onToggled: toggleFlipH()
                             }
@@ -678,6 +693,7 @@ ApplicationWindow {
                             spacing: 8
                             Switch {
                                 id: flipVSwitch
+                                objectName: "switch-flip-v"
                                 checked: flipV
                                 onToggled: toggleFlipV()
                             }
@@ -694,6 +710,7 @@ ApplicationWindow {
                             spacing: 8
                             Switch {
                                 id: invertSwitch
+                                objectName: "switch-invert"
                                 checked: invertColors
                                 onToggled: toggleInvert()
                             }
@@ -710,6 +727,7 @@ ApplicationWindow {
                             spacing: 8
                             Switch {
                                 id: torchSwitch
+                                objectName: "switch-torch"
                                 checked: torchOn
                                 enabled: currentFacing === "back"
                                 onToggled: { torchOn = !torchOn; }
@@ -727,6 +745,7 @@ ApplicationWindow {
                             spacing: 8
                             Switch {
                                 id: previewSwitch
+                                objectName: "switch-preview"
                                 checked: showPreview
                                 onToggled: { showPreview = !showPreview; }
                             }
@@ -757,6 +776,8 @@ ApplicationWindow {
                     ColumnLayout {
                         spacing: 2
                         Text {
+                            id: textStreamStatus
+                            objectName: "text-stream-status"
                             text: isStreaming ? "● VIRTUAL CAMERA ACTIVE" : "VIRTUAL CAMERA OFFLINE"
                             font.pixelSize: 14
                             font.bold: true
@@ -773,6 +794,8 @@ ApplicationWindow {
 
                     // Dedicated Preview Button
                     Button {
+                        id: previewBtn
+                        objectName: "btn-preview"
                         Layout.preferredWidth: 130
                         Layout.preferredHeight: 46
                         text: "👁️ Preview"
@@ -796,6 +819,8 @@ ApplicationWindow {
 
                     // Main Action Button
                     Button {
+                        id: startBtn
+                        objectName: "btn-stream-action"
                         Layout.preferredWidth: 170
                         Layout.preferredHeight: 46
                         text: isStreaming ? "🛑 Stop & Detach" : "🚀 Start Webcam"

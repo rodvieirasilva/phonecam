@@ -22,7 +22,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y qml6-module-qtquick qml6-module-qtquick-controls qt6-declarative-dev libv4l-dev ffmpeg desktop-file-utils
+          sudo apt-get install -y qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qttest qt6-declarative-dev qt6-declarative-dev-tools libv4l-dev ffmpeg desktop-file-utils
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -46,6 +46,12 @@ jobs:
 
       - name: Run Fake Phone E2E Test Suite
         run: cargo test --test fake_phone_e2e
+
+      - name: Run Qt Quick UI Click & TestID Simulation Suite
+        run: ./tests/test-ui.sh
+
+      - name: Run CLI & Asset E2E Test Suite
+        run: ./tests/test-e2e.sh
 
       - name: Test Coverage (cargo-llvm-cov)
         run: cargo llvm-cov --all-targets --summary-only

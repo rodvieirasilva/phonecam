@@ -102,6 +102,14 @@ else
     pass "qml6 runtime not available (skipped)"
 fi
 
+# 4b. Qt Quick UI Automated Click & TestID Test Suite
+echo "==> Step 4b: Testing QML UI Button Clicks & TestIDs..."
+if ./tests/test-ui.sh; then
+    pass "Qt Quick UI button click simulation & testIDs passed"
+else
+    fail "Qt Quick UI button click simulation failed"
+fi
+
 # 5. Package structure verification
 echo "==> Step 5: Testing Repository & Documentation Structure..."
 REQUIRED_FILES=(
@@ -116,6 +124,8 @@ REQUIRED_FILES=(
     "src/lib.rs"
     "src/main.rs"
     "ui/Main.qml"
+    "tests/tst_ui.qml"
+    "tests/test-ui.sh"
 )
 
 for file in "${REQUIRED_FILES[@]}"; do

@@ -157,8 +157,11 @@ PhoneCam features a comprehensive test suite including **fake phone E2E tests** 
 # Run all unit and integration tests
 cargo test --all-targets
 
-# Run Fake Phone E2E test suite
+# Run Fake Phone E2E test suite (mocked ADB & hardware)
 cargo test --test fake_phone_e2e
+
+# Run Qt Quick UI Click Simulation & TestID suite (headless)
+./tests/test-ui.sh
 
 # Run complete package lifecycle verification
 ./tests/test-package-e2e.sh
@@ -166,6 +169,26 @@ cargo test --test fake_phone_e2e
 # Run code coverage report
 cargo llvm-cov --summary-only
 ```
+
+### UI TestIDs (`objectName`) Reference
+For end-to-end automation and testing, all interactive elements in `ui/Main.qml` expose standard `objectName` test IDs:
+
+| TestID (`objectName`) | Control Type | Description |
+| :--- | :--- | :--- |
+| `btn-camera-rear` | Button | Toggles rear camera (`facing: "back"`) |
+| `btn-camera-front` | Button | Toggles selfie camera (`facing: "front"`) |
+| `combo-camera-lens` | ComboBox | Selects specific phone lens sensor |
+| `combo-resolution` | ComboBox | Selects resolution (1080p, 720p, 4K, 2K) |
+| `combo-crop` | ComboBox | Selects crop preset (16:9, 4:3, 1:1, custom) |
+| `switch-flip-h` | Switch | Horizontal flip / mirror |
+| `switch-flip-v` | Switch | Vertical flip (180°) |
+| `switch-invert` | Switch | Hardware color inversion filter |
+| `switch-torch` | Switch | Flashlight / studio torch |
+| `switch-preview` | Switch | Live desktop preview window |
+| `btn-preview` | Button | Opens preview and starts stream |
+| `btn-stream-action` | Button | Starts / stops `/dev/video10` stream |
+| `btn-theme-swatch-<0..5>` | MouseArea | Switches dynamic Omarchy accent color |
+| `btn-refresh` | Button | Manually polls ADB device status & logs |
 
 ---
 

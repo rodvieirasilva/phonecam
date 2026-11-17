@@ -73,8 +73,11 @@ phonecam/
 │   ├── server_tests.rs       # Axum REST API endpoint tests
 │   ├── util_tests.rs         # Theme & environment utility tests
 │   ├── v4l2_tests.rs         # Device node & module tests
+│   ├── tst_ui.qml            # Qt Quick UI TestSuite with simulated button clicks & testIDs
+│   ├── test-ui.sh            # Offscreen QML UI test runner
 │   ├── test-e2e.sh           # CLI, desktop & asset E2E script
-│   └── test-package-e2e.sh   # Full package lifecycle test runner
+│   ├── test-package-e2e.sh   # Full package lifecycle test runner
+│   └── test-android-emulator.sh # Android emulator / live hardware test script
 ├── README.md                 # User-facing documentation
 ├── AGENTS.md                 # Contributor & Agent instructions (this file)
 └── LICENSE                   # MIT License
@@ -96,6 +99,17 @@ phonecam/
 - Use `XMLHttpRequest` to communicate with the internal REST API on `127.0.0.1:41789`.
 - Ensure keyboard shortcuts (`Escape`, `q`, `Space`) are active application-wide.
 - Always poll `/api/status` periodically (2000ms) to detect phone plug/unplug events dynamically.
+- **UI Testability & TestIDs**:
+  - Always assign deterministic `objectName` test IDs to every interactive control:
+    - `"btn-camera-rear"`, `"btn-camera-front"`: Camera facing buttons
+    - `"combo-camera-lens"`: Sensor lens dropdown
+    - `"combo-resolution"`: Capture resolution dropdown
+    - `"combo-crop"`: Crop/framing preset dropdown
+    - `"switch-flip-h"`, `"switch-flip-v"`, `"switch-invert"`, `"switch-torch"`, `"switch-preview"`: Feature switches
+    - `"btn-preview"`, `"btn-stream-action"`: Primary action buttons
+    - `"btn-theme-swatch-<index>"`: Dynamic accent color swatches
+    - `"btn-refresh"`: Status & logs refresh button
+  - All UI tests run headless via `qmltestrunner` in `tests/test-ui.sh`.
 
 ---
 
@@ -111,6 +125,21 @@ cargo build
 
 # Compile optimized release binary
 cargo build --release
+```
+
+### Run Automated Tests
+```bash
+# Run all unit and integration tests
+cargo test --all-targets
+
+# Run mock phone end-to-end suite
+cargo test --test fake_phone_e2e
+
+# Run Qt Quick UI click simulation & testID suite (offscreen)
+./tests/test-ui.sh
+
+# Run complete system E2E validation
+./tests/test-package-e2e.sh
 ```
 
 ### Run Locally
