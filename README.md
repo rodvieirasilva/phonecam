@@ -15,8 +15,8 @@
 ╔══════════════════════════════════════════════════════════════════╗
 ║                    📱 PHONECAM VIRTUAL WEBCAM                    ║
 ╠══════════════════════════════════════════════════════════════════╣
-║  Device:    Galaxy S24        Brand:   SAMSUNG                ║
-║  Serial:    RFCNC000000          Android: 16                     ║
+║  Device:    Galaxy S24           Brand:   Android                ║
+║  Serial:    RFCNC000000          Android: 14                     ║
 ║  Battery:   84% ⚡                Output:  /dev/video10           ║
 ╠══════════════════════════════════════════════════════════════════╣
 ║  Camera:    BACK                 Size:    1920x1080              ║
