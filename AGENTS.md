@@ -41,15 +41,19 @@ Agents modifying or extending PhoneCam must adhere to the following core invaria
 ```text
 phonecam/
 ├── Cargo.toml                # Rust crate dependencies and build profiles
+├── config.example.toml       # Template configuration file with all supported options
 ├── assets/
 │   ├── phonecam.svg          # Primary vector logo
-│   └── phonecam.png          # 512x512 rendered raster icon
+│   ├── phonecam.png          # 512x512 rendered raster icon
+│   ├── screenshot-gui.png    # Live GTK4 desktop screenshot
+│   └── screenshot-tui.png    # Live terminal dashboard screenshot
 ├── pkgbuild/
 │   ├── PKGBUILD              # Arch Linux package specification for Omarchy
 │   └── phonecam.desktop      # XDG Desktop application launcher
 ├── scripts/
 │   ├── install.sh            # Complete local build & system installation
-│   └── uninstall.sh          # System uninstaller
+│   ├── uninstall.sh          # System uninstaller
+│   └── capture-screenshot.sh # Pixel-perfect Wayland screenshot utility
 ├── src/
 │   ├── main.rs               # Entry point, mode dispatcher
 │   ├── cli.rs                # CLI argument parser (Clap)
@@ -57,16 +61,14 @@ phonecam/
 │   ├── adb.rs                # ADB device detection, status polling, battery
 │   ├── v4l2.rs               # Kernel module setup, permissions, teardown
 │   ├── pipeline.rs           # scrcpy/ffmpeg stream lifecycle, filters, PIDs
-│   ├── server.rs             # Internal HTTP REST IPC for QML frontend
+│   ├── server.rs             # Internal HTTP REST IPC for frontend
 │   ├── tui.rs                # Crossterm terminal UI with any-key auto-detach
-│   ├── ui/                   # Native GTK4 / Libadwaita UI module
+│   ├── ui/                   # Unified desktop UI module
 │   │   ├── mod.rs            # Desktop UI entry points
-│   │   └── gtk_app.rs        # Adwaita application, widgets, theming & event loop
+│   │   ├── gtk_app.rs        # Adwaita application, widgets, theming & event loop
+│   │   ├── theme.css         # GTK4 / Libadwaita Omarchy theme template
+│   │   └── Main.qml          # Declarative UI layout specification
 │   └── util.rs               # Privilege escalation & Omarchy theme detection
-├── ui/
-│   ├── Main.qml              # Qt Quick ApplicationWindow layout & controls
-│   ├── Theme.qml             # Dynamic theme switcher and palette presets
-│   └── qmldir                # QML module definition
 ├── tests/
 │   ├── adb_tests.rs          # ADB device & camera parsing tests
 │   ├── cli_tests.rs          # CLI flag & parser tests
@@ -79,6 +81,8 @@ phonecam/
 │   ├── v4l2_tests.rs         # Device node & module tests
 │   ├── tst_ui.qml            # Qt Quick UI TestSuite with simulated button clicks & testIDs
 │   ├── test-ui.sh            # UI test runner (GTK4 & QML)
+│   ├── test-tui-e2e.sh       # Terminal TUI dashboard PTY & keypress E2E test
+│   ├── test-ocr-e2e.sh       # Synthetic camera stream transformations OCR E2E verification
 │   ├── test-e2e.sh           # CLI, desktop & asset E2E script
 │   ├── test-package-e2e.sh   # Full package lifecycle test runner
 │   └── test-android-emulator.sh # Android emulator / live hardware test script
@@ -110,13 +114,15 @@ phonecam/
     - `"combo-camera-lens"`: Sensor lens dropdown
     - `"combo-resolution"`: Capture resolution dropdown
     - `"combo-crop"`: Crop/framing preset dropdown
-    - `"switch-flip-h"`, `"switch-flip-v"`, `"switch-invert"`, `"switch-torch"`, `"switch-preview"`: Feature switches
-    - `"btn-preview"`, `"btn-stream-action"`: Primary action buttons
+    - `"combo-rotation"`: Rotation dropdown (0°, 90°, 180°, 270°)
+    - `"switch-flip-h"`, `"switch-invert"`, `"switch-torch"`, `"switch-auto-start"`: Feature switches
+    - `"btn-preview"`, `"btn-stream-action"`, `"btn-launch-camera"`: Primary action buttons
     - `"btn-refresh"`: Status & logs refresh button
     - `"input-wifi-address"`: IP:port input for ADB over Wi-Fi
     - `"btn-wifi-connect"`: Connect Wi-Fi ADB button
     - `"btn-wifi-tcpip"`: Enable USB TCP/IP button
     - `"text-wifi-status"`: Status message text for wireless ADB
+    - `"link-adb-docs"`: Setup guide link button
   - All UI tests run via `cargo test --test ui_test` and `./tests/test-ui.sh`.
 
 ---

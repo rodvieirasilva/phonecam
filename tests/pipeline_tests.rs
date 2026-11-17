@@ -93,3 +93,21 @@ fn test_stream_manager_lifecycle() {
     mgr.exit_standby();
     assert_eq!(*mgr.state(), phonecam::pipeline::StreamState::Stopped);
 }
+
+#[test]
+fn test_build_scrcpy_args_rotation_90_270() {
+    let cfg90 = AppConfig {
+        rotation: 90,
+        ..Default::default()
+    };
+    let args90 = build_scrcpy_args(&cfg90, "/dev/video10", false);
+    assert!(args90.contains(&"--capture-orientation=90".to_string()));
+
+    let cfg270_mirror = AppConfig {
+        rotation: 270,
+        flip_h: true,
+        ..Default::default()
+    };
+    let args270 = build_scrcpy_args(&cfg270_mirror, "/dev/video10", false);
+    assert!(args270.contains(&"--capture-orientation=flip270".to_string()));
+}

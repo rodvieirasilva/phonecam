@@ -29,8 +29,9 @@ package() {
     # Binary
     install -Dm755 "target/release/phonecam" "$pkgdir/usr/bin/phonecam"
 
-    # QML UI assets
-    install -Dm644 "ui/Main.qml" "$pkgdir/usr/share/phonecam/ui/Main.qml"
+    # UI assets & configuration template
+    install -Dm644 "src/ui/Main.qml" "$pkgdir/usr/share/phonecam/ui/Main.qml"
+    install -Dm644 "config.example.toml" "$pkgdir/usr/share/phonecam/config.example.toml"
 
     # Desktop entry
     install -Dm644 "pkgbuild/phonecam.desktop" "$pkgdir/usr/share/applications/phonecam.desktop"

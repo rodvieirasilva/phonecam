@@ -45,8 +45,19 @@ fn test_http_post_offline() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn test_gtk_ui_widget_tree_and_interactions() {
+    // Isolate HOME so tests run with fresh default config
+    let orig_home = std::env::var("HOME").ok();
+    let test_dir = std::env::temp_dir().join(format!("phonecam_ui_test_{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&test_dir);
+    let _ = std::fs::create_dir_all(&test_dir);
+    unsafe { std::env::set_var("HOME", &test_dir) };
+
     // If running in a strictly displayless environment where GTK cannot initialize, return gracefully
     if gtk4::init().is_err() || adw::init().is_err() {
+        if let Some(h) = orig_home {
+            unsafe { std::env::set_var("HOME", h) };
+        }
+        let _ = std::fs::remove_dir_all(&test_dir);
         eprintln!("GTK4 / Libadwaita could not initialize display. Skipping UI test.");
         return;
     }
@@ -160,16 +171,20 @@ async fn test_gtk_ui_widget_tree_and_interactions() {
         find_widget_by_name(root, "combo-resolution").expect("combo-resolution must exist");
     let combo_crop: adw::ComboRow =
         find_widget_by_name(root, "combo-crop").expect("combo-crop must exist");
+    let combo_rot: adw::ComboRow =
+        find_widget_by_name(root, "combo-rotation").expect("combo-rotation must exist");
     let switch_fliph: gtk4::Switch =
         find_widget_by_name(root, "switch-flip-h").expect("switch-flip-h must exist");
-    let switch_flipv: gtk4::Switch =
-        find_widget_by_name(root, "switch-flip-v").expect("switch-flip-v must exist");
     let switch_invert: gtk4::Switch =
         find_widget_by_name(root, "switch-invert").expect("switch-invert must exist");
     let switch_torch: gtk4::Switch =
         find_widget_by_name(root, "switch-torch").expect("switch-torch must exist");
-    let switch_preview: gtk4::Switch =
-        find_widget_by_name(root, "switch-preview").expect("switch-preview must exist");
+    let switch_autostart: gtk4::Switch =
+        find_widget_by_name(root, "switch-auto-start").expect("switch-auto-start must exist");
+    let doc_link: gtk4::LinkButton =
+        find_widget_by_name(root, "link-adb-docs").expect("link-adb-docs must exist");
+    let btn_launch_camera: gtk4::Button =
+        find_widget_by_name(root, "btn-launch-camera").expect("btn-launch-camera must exist");
     let btn_preview: gtk4::Button =
         find_widget_by_name(root, "btn-preview").expect("btn-preview must exist");
     let btn_stream: gtk4::Button =
@@ -184,14 +199,17 @@ async fn test_gtk_ui_widget_tree_and_interactions() {
     assert_eq!(bat_label.label(), "");
     assert_eq!(wifi_status.title(), "Wireless Status");
     assert_eq!(combo_lens.title(), "Specific Lens Sensor");
+    assert_eq!(combo_rot.title(), "Rotation Angle");
     assert_eq!(logs_row.title(), "Recent Activity");
-    assert_eq!(btn_stream.label().as_deref(), Some("🚀 Start Webcam"));
+    assert_eq!(btn_stream.label().as_deref(), Some("Start Webcam"));
     assert_eq!(stream_status.title(), "VIRTUAL CAMERA OFFLINE");
+    assert_eq!(doc_link.label().as_deref(), Some("View Guide ↗"));
+    assert_eq!(btn_launch_camera.label().as_deref(), Some("Camera App"));
     assert!(!switch_fliph.is_active());
-    assert!(!switch_flipv.is_active());
     assert!(!switch_invert.is_active());
     assert_eq!(combo_res.selected(), 0);
     assert_eq!(combo_crop.selected(), 0);
+    assert_eq!(combo_rot.selected(), 0);
 
     // 3. Simulate camera facing button clicks
     btn_camera_front.emit_clicked();
@@ -200,38 +218,50 @@ async fn test_gtk_ui_widget_tree_and_interactions() {
     // 4. Simulate switch toggles
     switch_fliph.set_active(true);
     assert!(switch_fliph.is_active());
-    switch_flipv.set_active(true);
-    assert!(switch_flipv.is_active());
     switch_invert.set_active(true);
     assert!(switch_invert.is_active());
     switch_torch.set_active(true);
     assert!(switch_torch.is_active());
-    switch_preview.set_active(true);
-    assert!(switch_preview.is_active());
+    switch_autostart.set_active(true);
+    assert!(switch_autostart.is_active());
 
-    // 5. Simulate combobox selection changes
+    // 5. Simulate combobox selection changes (resolution, crop, 90° rotation)
     combo_res.set_selected(1);
     assert_eq!(combo_res.selected(), 1);
     combo_crop.set_selected(2);
     assert_eq!(combo_crop.selected(), 2);
+    combo_rot.set_selected(1); // 90° clockwise
+    assert_eq!(combo_rot.selected(), 1);
 
     // 6. Simulate Wi-Fi ADB actions
     wifi_input.set_text("192.168.1.150:5555");
     btn_wifi_connect.emit_clicked();
     btn_wifi_tcpip.emit_clicked();
 
-    // 7. Simulate Stream start & stop
+    // 7. Simulate Stream start & stop (checking sensitivity state transitions)
     btn_stream.emit_clicked();
-    assert_eq!(btn_stream.label().as_deref(), Some("🛑 Stop & Detach"));
+    assert_eq!(btn_stream.label().as_deref(), Some("Stop & Detach"));
     assert_eq!(stream_status.title(), "● VIRTUAL CAMERA ACTIVE");
+    assert!(!combo_res.is_sensitive());
+    assert!(!combo_crop.is_sensitive());
+    assert!(!combo_rot.is_sensitive());
+    assert!(!btn_camera_rear.is_sensitive());
+    assert!(!btn_camera_front.is_sensitive());
+    assert!(!btn_wifi_connect.is_sensitive());
+    assert!(!btn_wifi_tcpip.is_sensitive());
 
     btn_stream.emit_clicked();
-    assert_eq!(btn_stream.label().as_deref(), Some("🚀 Start Webcam"));
+    assert_eq!(btn_stream.label().as_deref(), Some("Start Webcam"));
     assert_eq!(stream_status.title(), "VIRTUAL CAMERA OFFLINE");
+    assert!(combo_res.is_sensitive());
+    assert!(combo_crop.is_sensitive());
+    assert!(combo_rot.is_sensitive());
+    assert!(btn_camera_rear.is_sensitive());
+    assert!(btn_camera_front.is_sensitive());
 
-    // 8. Simulate Preview button click
+    // 8. Simulate Preview button & Camera App button clicks
     btn_preview.emit_clicked();
-    assert!(switch_preview.is_active());
+    btn_launch_camera.emit_clicked();
 
     // 9. Simulate Refresh button click
     btn_refresh.emit_clicked();
@@ -240,6 +270,19 @@ async fn test_gtk_ui_widget_tree_and_interactions() {
     let ctx = glib::MainContext::default();
     while ctx.iteration(false) {}
 
+    // 10. Verify TOML config persistence on disk
+    let config_path = test_dir.join(".config/phonecam/config.toml");
+    assert!(config_path.exists(), "config.toml must be written to disk");
+    let toml_data = std::fs::read_to_string(&config_path).expect("Read config.toml");
+    assert!(toml_data.contains("192.168.1.150:5555"));
+    assert!(toml_data.contains("flip_h = true"));
+    assert!(toml_data.contains("rotation = 90"));
+
     // Verify window is ready
     assert_eq!(window.widget_name(), "window-main");
+
+    if let Some(h) = orig_home {
+        unsafe { std::env::set_var("HOME", h) };
+    }
+    let _ = std::fs::remove_dir_all(&test_dir);
 }

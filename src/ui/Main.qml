@@ -13,16 +13,8 @@ ApplicationWindow {
     title: "PhoneCam — Smartphone Virtual Webcam"
     color: "#18181b"
 
-    // Theme state
-    property string accentColor: "#FFD60A"
-    property var themePresets: [
-        { name: "Omarchy Gold",  hex: "#FFD60A" },
-        { name: "Cyber Emerald", hex: "#10B981" },
-        { name: "Sky Blue",      hex: "#38BDF8" },
-        { name: "Neon Violet",   hex: "#A855F7" },
-        { name: "Sunset Orange", hex: "#F97316" },
-        { name: "Rose Pink",     hex: "#F43F5E" }
-    ]
+    // Theme state (Tokyo Night / Omarchy Blue default)
+    property string accentColor: "#7aa2f7"
 
     // Runtime state
     property int port: 41789
@@ -397,30 +389,6 @@ ApplicationWindow {
                 }
 
                 Item { Layout.fillWidth: true }
-
-                // Theme Palette Swatches
-                RowLayout {
-                    spacing: 6
-                    Repeater {
-                        model: themePresets
-                        Rectangle {
-                            objectName: "swatch-container-" + index
-                            width: 24
-                            height: 24
-                            radius: 12
-                            color: modelData.hex
-                            border.color: accentColor === modelData.hex ? "#ffffff" : "transparent"
-                            border.width: accentColor === modelData.hex ? 2 : 0
-
-                            MouseArea {
-                                objectName: "btn-theme-swatch-" + index
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: setCustomAccent(modelData.hex)
-                            }
-                        }
-                    }
-                }
 
                 // Refresh Button
                 Button {

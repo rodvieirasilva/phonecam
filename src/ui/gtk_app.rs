@@ -7,6 +7,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::info;
 
+use crate::config::UserStateConfig;
+
 pub fn run_gtk_app(port: u16) -> Result<(), Box<dyn std::error::Error>> {
     info!("Starting PhoneCam native GTK4/Adwaita application on port {port}");
 
@@ -51,14 +53,14 @@ impl Default for ThemePalette {
         Self {
             mode: "dark".to_string(),
             accent: crate::util::get_omarchy_accent(),
-            background: "#18181b".to_string(),
-            dark_background: "#121214".to_string(),
-            darker_background: "#09090b".to_string(),
-            lighter_background: "#27272a".to_string(),
-            foreground: "#e4e4e7".to_string(),
-            bright_foreground: "#f4f4f5".to_string(),
-            green: "#10b981".to_string(),
-            red: "#ef4444".to_string(),
+            background: "#1a1b26".to_string(),
+            dark_background: "#13141c".to_string(),
+            darker_background: "#0e0e14".to_string(),
+            lighter_background: "#24283b".to_string(),
+            foreground: "#a9b1d6".to_string(),
+            bright_foreground: "#c0caf5".to_string(),
+            green: "#9ece6a".to_string(),
+            red: "#f7768e".to_string(),
         }
     }
 }
@@ -102,42 +104,14 @@ pub fn build_theme_css(palette: &ThemePalette) -> String {
         "#18181b"
     };
 
-    format!(
-        r#"
-@define-color window_bg_color {bg};
-@define-color window_fg_color {fg};
-@define-color view_bg_color {bg};
-@define-color view_fg_color {fg};
-@define-color headerbar_bg_color {dark_bg};
-@define-color headerbar_fg_color {fg};
-@define-color card_bg_color {card_bg};
-@define-color card_fg_color {fg};
-@define-color accent_color {accent};
-@define-color accent_bg_color {accent};
-@define-color accent_fg_color {accent_fg};
-
-window, window.background, .background, preferencespage, scrolledwindow, viewport {{
-    background-color: {bg};
-    color: {fg};
-}}
-
-headerbar {{
-    background-color: {dark_bg};
-    color: {fg};
-}}
-
-.boxed-list, row {{
-    background-color: {card_bg};
-    color: {fg};
-}}
-"#,
-        bg = palette.background,
-        fg = palette.bright_foreground,
-        dark_bg = palette.dark_background,
-        card_bg = palette.lighter_background,
-        accent = palette.accent,
-        accent_fg = accent_fg,
-    )
+    let template = include_str!("theme.css");
+    template
+        .replace("{bg}", &palette.background)
+        .replace("{fg}", &palette.bright_foreground)
+        .replace("{dark_bg}", &palette.dark_background)
+        .replace("{card_bg}", &palette.lighter_background)
+        .replace("{accent}", &palette.accent)
+        .replace("{accent_fg}", accent_fg)
 }
 
 pub fn apply_theme(provider: &gtk4::CssProvider, palette: &ThemePalette) {
@@ -202,6 +176,9 @@ pub fn setup_theme_monitor(
 }
 
 pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::ApplicationWindow {
+    let user_cfg = Rc::new(RefCell::new(UserStateConfig::load()));
+    let initial_cfg = user_cfg.borrow().clone();
+
     let mut builder = adw::ApplicationWindow::builder()
         .title("PhoneCam — Smartphone Virtual Webcam")
         .icon_name("phonecam")
@@ -227,7 +204,67 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
 
     let page = adw::PreferencesPage::new();
 
-    // 1. Device Status Group
+    // 1. Virtual Webcam Device Group (Start Webcam, Preview, Auto-start at the top)
+    let stream_group = adw::PreferencesGroup::builder()
+        .title("Virtual Device /dev/video10")
+        .name("group-stream")
+        .build();
+
+    let stream_row = adw::ActionRow::builder()
+        .name("text-stream-status")
+        .title("VIRTUAL CAMERA OFFLINE")
+        .subtitle("Device node: /dev/video10 (v4l2loopback)")
+        .build();
+
+    let btn_stream_action = gtk4::Button::builder()
+        .name("btn-stream-action")
+        .label("Start Webcam")
+        .valign(gtk4::Align::Center)
+        .css_classes(["suggested-action"])
+        .tooltip_text("Start virtual camera stream (auto-connects to saved Wi-Fi if needed)")
+        .build();
+
+    let btn_preview = gtk4::Button::builder()
+        .name("btn-preview")
+        .label("Preview")
+        .valign(gtk4::Align::Center)
+        .tooltip_text("Open real-time desktop preview of /dev/video10")
+        .build();
+
+    let btn_launch_camera = gtk4::Button::builder()
+        .name("btn-launch-camera")
+        .label("Camera App")
+        .valign(gtk4::Align::Center)
+        .tooltip_text("Open native Camera app (Snapshot) to test webcam")
+        .build();
+    btn_launch_camera.connect_clicked(|_| {
+        let _ = std::process::Command::new("snapshot").spawn();
+    });
+
+    let stream_btn_box = gtk4::Box::new(gtk4::Orientation::Horizontal, 8);
+    stream_btn_box.append(&btn_stream_action);
+    stream_btn_box.append(&btn_preview);
+    stream_btn_box.append(&btn_launch_camera);
+    stream_row.add_suffix(&stream_btn_box);
+    stream_group.add(&stream_row);
+
+    let switch_auto_start = gtk4::Switch::builder()
+        .name("switch-auto-start")
+        .active(initial_cfg.auto_start)
+        .valign(gtk4::Align::Center)
+        .build();
+
+    let row_auto_start = adw::ActionRow::builder()
+        .name("row-auto-start")
+        .title("Auto-start Webcam on Launch")
+        .subtitle("Automatically activate camera stream when PhoneCam opens")
+        .activatable_widget(&switch_auto_start)
+        .build();
+    row_auto_start.add_suffix(&switch_auto_start);
+    stream_group.add(&row_auto_start);
+    page.add(&stream_group);
+
+    // 2. Device Status Group
     let device_group = adw::PreferencesGroup::builder()
         .title("Smartphone Device")
         .name("group-device")
@@ -259,6 +296,7 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
     let wifi_entry = gtk4::Entry::builder()
         .name("input-wifi-address")
         .placeholder_text("192.168.1.50:5555")
+        .text(&initial_cfg.last_ip)
         .valign(gtk4::Align::Center)
         .hexpand(true)
         .build();
@@ -277,14 +315,14 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
 
     let btn_wifi_connect = gtk4::Button::builder()
         .name("btn-wifi-connect")
-        .label("📡 Connect Wi-Fi")
+        .label("Connect Wi-Fi")
         .valign(gtk4::Align::Center)
         .css_classes(["suggested-action"])
         .build();
 
     let btn_wifi_tcpip = gtk4::Button::builder()
         .name("btn-wifi-tcpip")
-        .label("🔌 Enable USB TCP/IP")
+        .label("Enable USB TCP/IP")
         .valign(gtk4::Align::Center)
         .tooltip_text("Switches USB-connected phone to port 5555 for wireless disconnection")
         .build();
@@ -295,10 +333,25 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
     wifi_actions_row.add_suffix(&wifi_btn_box);
     wifi_group.add(&wifi_actions_row);
 
+    let doc_link_row = adw::ActionRow::builder()
+        .name("row-adb-docs")
+        .title("Setup Guide")
+        .subtitle("Learn how to enable USB Debugging &amp; Wireless ADB on Android")
+        .build();
+
+    let doc_link_btn = gtk4::LinkButton::builder()
+        .name("link-adb-docs")
+        .uri("https://github.com/rom1v/scrcpy/blob/master/doc/connection.md")
+        .label("View Guide ↗")
+        .valign(gtk4::Align::Center)
+        .build();
+    doc_link_row.add_suffix(&doc_link_btn);
+    wifi_group.add(&doc_link_row);
+
     let wifi_status_row = adw::ActionRow::builder()
         .name("text-wifi-status")
         .title("Wireless Status")
-        .subtitle("💡 Connect phone via USB once and click 'Enable USB TCP/IP', then unplug cable and click 'Connect Wi-Fi'.")
+        .subtitle("Connect phone via USB once and click 'Enable USB TCP/IP', then unplug cable and click 'Connect Wi-Fi'.")
         .build();
     wifi_group.add(&wifi_status_row);
     page.add(&wifi_group);
@@ -314,17 +367,27 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
         .subtitle("Select rear primary or front selfie camera")
         .build();
 
+    let is_facing_front = initial_cfg.facing == "front";
     let btn_camera_rear = gtk4::Button::builder()
         .name("btn-camera-rear")
-        .label("📸 Rear (Back)")
+        .label("Rear (Back)")
         .valign(gtk4::Align::Center)
-        .css_classes(["suggested-action"])
+        .css_classes(if !is_facing_front {
+            vec!["suggested-action"]
+        } else {
+            vec![]
+        })
         .build();
 
     let btn_camera_front = gtk4::Button::builder()
         .name("btn-camera-front")
-        .label("🤳 Selfie (Front)")
+        .label("Selfie (Front)")
         .valign(gtk4::Align::Center)
+        .css_classes(if is_facing_front {
+            vec!["suggested-action"]
+        } else {
+            vec![]
+        })
         .build();
 
     let facing_btn_box = gtk4::Box::new(gtk4::Orientation::Horizontal, 8);
@@ -354,11 +417,17 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
         "3840x2160 (4K UHD)",
         "2560x1440 (2K QHD)",
     ]);
+    let initial_res_idx = match initial_cfg.resolution.as_str() {
+        "1280x720" => 1,
+        "3840x2160" => 2,
+        "2560x1440" => 3,
+        _ => 0,
+    };
     let combo_resolution = adw::ComboRow::builder()
         .name("combo-resolution")
         .title("Resolution (Resize)")
         .model(&res_strings)
-        .selected(0)
+        .selected(initial_res_idx)
         .build();
     geom_group.add(&combo_resolution);
 
@@ -369,11 +438,22 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
         "1:1 Square (Avatar)",
         "Custom 1080p Center Cut",
     ]);
+    let initial_crop_idx = match initial_cfg
+        .crop
+        .as_deref()
+        .or(initial_cfg.camera_ar.as_deref())
+    {
+        Some("16:9") => 1,
+        Some("4:3") => 2,
+        Some("1:1") => 3,
+        Some("custom") | Some("1920:1080:0:0") => 4,
+        _ => 0,
+    };
     let combo_crop = adw::ComboRow::builder()
         .name("combo-crop")
         .title("Framing / Cut (Crop)")
         .model(&crop_strings)
-        .selected(0)
+        .selected(initial_crop_idx)
         .build();
     geom_group.add(&combo_crop);
     page.add(&geom_group);
@@ -384,9 +464,36 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
         .name("group-transforms")
         .build();
 
+    let rotation_strings = gtk4::StringList::new(&[
+        "0° (Normal)",
+        "90° (Clockwise)",
+        "180° (Inverted)",
+        "270° (Counter-Clockwise)",
+    ]);
+    let initial_rot_idx = match initial_cfg.rotation {
+        90 => 1,
+        180 => 2,
+        270 => 3,
+        _ => {
+            if initial_cfg.flip_v {
+                2
+            } else {
+                0
+            }
+        }
+    };
+    let combo_rotation = adw::ComboRow::builder()
+        .name("combo-rotation")
+        .title("Rotation Angle")
+        .subtitle("Clockwise camera sensor rotation (0°, 90°, 180°, 270°)")
+        .model(&rotation_strings)
+        .selected(initial_rot_idx)
+        .build();
+    fx_group.add(&combo_rotation);
+
     let switch_flip_h = gtk4::Switch::builder()
         .name("switch-flip-h")
-        .active(false)
+        .active(initial_cfg.flip_h)
         .valign(gtk4::Align::Center)
         .build();
     let row_flip_h = adw::ActionRow::builder()
@@ -397,22 +504,9 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
     row_flip_h.add_suffix(&switch_flip_h);
     fx_group.add(&row_flip_h);
 
-    let switch_flip_v = gtk4::Switch::builder()
-        .name("switch-flip-v")
-        .active(false)
-        .valign(gtk4::Align::Center)
-        .build();
-    let row_flip_v = adw::ActionRow::builder()
-        .title("Flip Vertical (180°)")
-        .subtitle("Inverted mount correction")
-        .activatable_widget(&switch_flip_v)
-        .build();
-    row_flip_v.add_suffix(&switch_flip_v);
-    fx_group.add(&row_flip_v);
-
     let switch_invert = gtk4::Switch::builder()
         .name("switch-invert")
-        .active(false)
+        .active(initial_cfg.invert)
         .valign(gtk4::Align::Center)
         .build();
     let row_invert = adw::ActionRow::builder()
@@ -425,7 +519,7 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
 
     let switch_torch = gtk4::Switch::builder()
         .name("switch-torch")
-        .active(false)
+        .active(initial_cfg.torch)
         .valign(gtk4::Align::Center)
         .build();
     let row_torch = adw::ActionRow::builder()
@@ -435,52 +529,7 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
         .build();
     row_torch.add_suffix(&switch_torch);
     fx_group.add(&row_torch);
-
-    let switch_preview = gtk4::Switch::builder()
-        .name("switch-preview")
-        .active(false)
-        .valign(gtk4::Align::Center)
-        .build();
-    let row_preview = adw::ActionRow::builder()
-        .title("Live Desktop Preview")
-        .subtitle("Open real-time monitor window")
-        .activatable_widget(&switch_preview)
-        .build();
-    row_preview.add_suffix(&switch_preview);
-    fx_group.add(&row_preview);
     page.add(&fx_group);
-
-    // 6. Virtual Webcam Device Group
-    let stream_group = adw::PreferencesGroup::builder()
-        .title("Virtual Device /dev/video10")
-        .name("group-stream")
-        .build();
-
-    let stream_row = adw::ActionRow::builder()
-        .name("text-stream-status")
-        .title("VIRTUAL CAMERA OFFLINE")
-        .subtitle("Device node: /dev/video10 (v4l2loopback)")
-        .build();
-
-    let btn_preview = gtk4::Button::builder()
-        .name("btn-preview")
-        .label("👁️ Preview")
-        .valign(gtk4::Align::Center)
-        .build();
-
-    let btn_stream_action = gtk4::Button::builder()
-        .name("btn-stream-action")
-        .label("🚀 Start Webcam")
-        .valign(gtk4::Align::Center)
-        .css_classes(["suggested-action"])
-        .build();
-
-    let stream_btn_box = gtk4::Box::new(gtk4::Orientation::Horizontal, 8);
-    stream_btn_box.append(&btn_preview);
-    stream_btn_box.append(&btn_stream_action);
-    stream_row.add_suffix(&stream_btn_box);
-    stream_group.add(&stream_row);
-    page.add(&stream_group);
 
     // 7. Live Console & Diagnostics
     let logs_group = adw::PreferencesGroup::builder()
@@ -524,34 +573,208 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
     let is_streaming_clone = is_streaming_state.clone();
     let btn_action_weak = btn_stream_action.downgrade();
     let stream_row_weak = stream_row.downgrade();
-    let switch_preview_weak = switch_preview.downgrade();
+    let combo_rot_weak = combo_rotation.downgrade();
+    let switch_fliph_weak = switch_flip_h.downgrade();
+    let switch_inv_weak = switch_invert.downgrade();
+    let switch_torch_weak = switch_torch.downgrade();
+    let switch_as_weak = switch_auto_start.downgrade();
+    let btn_front_weak = btn_camera_front.downgrade();
+    let btn_rear_weak = btn_camera_rear.downgrade();
+    let combo_lens_weak = combo_camera_lens.downgrade();
     let combo_res_weak = combo_resolution.downgrade();
     let combo_crop_weak = combo_crop.downgrade();
+    let btn_preview_weak = btn_preview.downgrade();
+    let btn_wifi_conn_weak = btn_wifi_connect.downgrade();
+    let btn_wifi_tcp_weak = btn_wifi_tcpip.downgrade();
+    let wifi_entry_weak = wifi_entry.downgrade();
+    let wifi_status_weak = wifi_status_row.downgrade();
+
+    // Consolidated Dynamic UI Sensitivities & Connection States
+    let update_dynamic_ui = {
+        let btn_action_weak = btn_action_weak.clone();
+        let btn_preview_weak = btn_preview_weak.clone();
+        let stream_row_weak = stream_row_weak.clone();
+        let rear_btn_weak = btn_rear_weak.clone();
+        let front_btn_weak = btn_front_weak.clone();
+        let combo_lens_weak = combo_lens_weak.clone();
+        let combo_res_weak = combo_res_weak.clone();
+        let combo_crop_weak = combo_crop_weak.clone();
+        let combo_rot_weak = combo_rot_weak.clone();
+        let switch_as_weak = switch_as_weak.clone();
+        let btn_wifi_conn_weak = btn_wifi_conn_weak.clone();
+        let btn_wifi_tcp_weak = btn_wifi_tcp_weak.clone();
+        let wifi_entry_weak = wifi_entry_weak.clone();
+        let wifi_status_weak = wifi_status_weak.clone();
+
+        move |streaming: bool, dev_status: &str, serial: &str| {
+            if let (Some(btn), Some(s_row), Some(btn_prev)) = (
+                btn_action_weak.upgrade(),
+                stream_row_weak.upgrade(),
+                btn_preview_weak.upgrade(),
+            ) {
+                if streaming {
+                    btn.set_label("Stop & Detach");
+                    btn.remove_css_class("suggested-action");
+                    btn.add_css_class("destructive-action");
+                    s_row.set_title("● VIRTUAL CAMERA ACTIVE");
+                    btn_prev.set_label("Open Preview");
+                } else {
+                    btn.set_label("Start Webcam");
+                    btn.remove_css_class("destructive-action");
+                    btn.add_css_class("suggested-action");
+                    s_row.set_title("VIRTUAL CAMERA OFFLINE");
+                    btn_prev.set_label("Preview");
+                }
+            }
+
+            let enable_settings = !streaming;
+            if let Some(w) = rear_btn_weak.upgrade() {
+                w.set_sensitive(enable_settings);
+            }
+            if let Some(w) = front_btn_weak.upgrade() {
+                w.set_sensitive(enable_settings);
+            }
+            if let Some(w) = combo_lens_weak.upgrade() {
+                w.set_sensitive(enable_settings);
+            }
+            if let Some(w) = combo_res_weak.upgrade() {
+                w.set_sensitive(enable_settings);
+            }
+            if let Some(w) = combo_crop_weak.upgrade() {
+                w.set_sensitive(enable_settings);
+            }
+            if let Some(w) = combo_rot_weak.upgrade() {
+                w.set_sensitive(enable_settings);
+            }
+            if let Some(w) = switch_as_weak.upgrade() {
+                w.set_sensitive(enable_settings);
+            }
+
+            // Wi-Fi / USB buttons state logic
+            let is_wifi =
+                dev_status == "Connected" && (serial.contains(':') || serial.contains('.'));
+            let is_usb = dev_status == "Connected" && !is_wifi;
+
+            if let (Some(btn_conn), Some(btn_tcp), Some(entry), Some(status_row)) = (
+                btn_wifi_conn_weak.upgrade(),
+                btn_wifi_tcp_weak.upgrade(),
+                wifi_entry_weak.upgrade(),
+                wifi_status_weak.upgrade(),
+            ) {
+                if streaming {
+                    btn_conn.set_sensitive(false);
+                    btn_tcp.set_sensitive(false);
+                    entry.set_sensitive(false);
+                } else if is_wifi {
+                    btn_conn.set_sensitive(false);
+                    btn_tcp.set_sensitive(false);
+                    entry.set_sensitive(false);
+                    status_row.set_subtitle(&format!("Connected wirelessly via ADB ({serial})"));
+                } else if is_usb {
+                    btn_tcp.set_sensitive(true);
+                    btn_conn.set_sensitive(true);
+                    entry.set_sensitive(true);
+                    status_row.set_subtitle(&format!("USB connected ({serial}). Click 'Enable USB TCP/IP' to prepare wireless mode."));
+                } else if dev_status == "Unauthorized" {
+                    btn_tcp.set_sensitive(false);
+                    btn_conn.set_sensitive(false);
+                    entry.set_sensitive(false);
+                    status_row.set_subtitle("Unlock phone & tap 'Allow' for USB debugging.");
+                } else {
+                    // NotFound or Offline
+                    btn_tcp.set_sensitive(false);
+                    btn_conn.set_sensitive(true);
+                    entry.set_sensitive(true);
+                    status_row.set_subtitle(
+                        "Enter phone IP:5555 and click 'Connect Wi-Fi', or plug USB cable.",
+                    );
+                }
+            }
+        }
+    };
+
+    // Initial sensitivities setup
+    update_dynamic_ui(false, "NotFound", "");
 
     // Start / Stop Stream Action
+    let update_ui_for_start = update_dynamic_ui.clone();
+    let user_cfg_for_start = user_cfg.clone();
     let start_stop_handler = {
         let _is_updating = is_updating_clone.clone();
         let is_streaming = is_streaming_clone.clone();
-        let btn_action_weak = btn_action_weak.clone();
-        let stream_row_weak = stream_row_weak.clone();
-        let switch_preview_weak = switch_preview_weak.clone();
+        let combo_rot_weak = combo_rot_weak.clone();
+        let switch_fliph_weak = switch_fliph_weak.clone();
+        let switch_inv_weak = switch_inv_weak.clone();
+        let switch_torch_weak = switch_torch_weak.clone();
+        let btn_front_weak = btn_front_weak.clone();
         let combo_res_weak = combo_res_weak.clone();
         let combo_crop_weak = combo_crop_weak.clone();
+        let wifi_entry_weak = wifi_entry_weak.clone();
+        let wifi_status_weak = wifi_status_weak.clone();
+        let user_cfg = user_cfg_for_start.clone();
+        let update_ui = update_ui_for_start.clone();
 
         move || {
             let currently_streaming = is_streaming.load(Ordering::SeqCst);
             if currently_streaming {
                 let _ = http_post(port, "/api/stop", None);
                 is_streaming.store(false, Ordering::SeqCst);
-                if let (Some(btn), Some(row)) =
-                    (btn_action_weak.upgrade(), stream_row_weak.upgrade())
-                {
-                    btn.set_label("🚀 Start Webcam");
-                    btn.remove_css_class("destructive-action");
-                    btn.add_css_class("suggested-action");
-                    row.set_title("VIRTUAL CAMERA OFFLINE");
-                }
+                update_ui(false, "Connected", "");
             } else {
+                // If phone is not connected, attempt auto-connect via Wi-Fi if an IP is configured
+                let status_res = http_get(port, "/api/status");
+                let is_connected = status_res
+                    .as_ref()
+                    .ok()
+                    .and_then(|st| st.get("device").and_then(|d| d["status"].as_str()))
+                    .map(|s| s == "Connected")
+                    .unwrap_or(false);
+
+                if !is_connected {
+                    let entered_ip = wifi_entry_weak
+                        .upgrade()
+                        .map(|e| e.text().trim().to_string())
+                        .unwrap_or_default();
+                    let target_ip = if !entered_ip.is_empty() {
+                        entered_ip
+                    } else {
+                        user_cfg.borrow().last_ip.trim().to_string()
+                    };
+
+                    if !target_ip.is_empty() {
+                        let full_addr = if target_ip.contains(':') {
+                            target_ip.clone()
+                        } else {
+                            format!("{target_ip}:5555")
+                        };
+                        user_cfg.borrow_mut().remember_ip(&full_addr);
+                        let _ = user_cfg.borrow().save();
+
+                        if let Some(st_row) = wifi_status_weak.upgrade() {
+                            st_row
+                                .set_subtitle(&format!("Auto-connecting Wi-Fi to {full_addr}..."));
+                        }
+
+                        let connect_result = http_post(
+                            port,
+                            "/api/connect-wifi",
+                            Some(&serde_json::json!({ "address": full_addr })),
+                        );
+
+                        if let Some(st_row) = wifi_status_weak.upgrade() {
+                            match connect_result {
+                                Ok(val) => {
+                                    let msg = val["message"].as_str().unwrap_or("Connected");
+                                    st_row.set_subtitle(msg);
+                                }
+                                Err(e) => {
+                                    st_row.set_subtitle(&format!("Auto-connect failed: {e}"));
+                                }
+                            }
+                        }
+                    }
+                }
+
                 let res_idx = combo_res_weak.upgrade().map(|c| c.selected()).unwrap_or(0);
                 let resolution = match res_idx {
                     1 => "1280x720",
@@ -569,37 +792,65 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
                     _ => (None, None),
                 };
 
-                let preview = switch_preview_weak
+                let rot_idx = combo_rot_weak.upgrade().map(|c| c.selected()).unwrap_or(0);
+                let rotation = match rot_idx {
+                    1 => 90,
+                    2 => 180,
+                    3 => 270,
+                    _ => 0,
+                };
+
+                let flip_h = switch_fliph_weak
                     .upgrade()
                     .map(|s| s.is_active())
                     .unwrap_or(false);
 
-                let payload = serde_json::json!({
+                let invert = switch_inv_weak
+                    .upgrade()
+                    .map(|s| s.is_active())
+                    .unwrap_or(false);
+
+                let torch = switch_torch_weak
+                    .upgrade()
+                    .map(|s| s.is_active())
+                    .unwrap_or(false);
+
+                let is_front = btn_front_weak
+                    .upgrade()
+                    .map(|b| b.has_css_class("suggested-action"))
+                    .unwrap_or(false);
+                let facing = if is_front { "front" } else { "back" };
+
+                let camera_id = user_cfg
+                    .borrow()
+                    .camera_id
+                    .as_deref()
+                    .and_then(|s| s.parse::<u32>().ok());
+
+                let mut payload = serde_json::json!({
                     "video_nr": 10,
                     "card_label": "PhoneCam Virtual Camera",
-                    "facing": "back",
+                    "facing": facing,
                     "resolution": resolution,
                     "camera_ar": camera_ar,
                     "crop": crop,
                     "fps": 30,
-                    "flip_h": false,
-                    "flip_v": false,
-                    "invert": false,
-                    "preview": preview,
-                    "torch": false,
+                    "flip_h": flip_h,
+                    "flip_v": rotation == 180,
+                    "rotation": rotation,
+                    "invert": invert,
+                    "preview": false,
+                    "torch": torch,
                     "port": port
                 });
 
+                if let Some(cid) = camera_id {
+                    payload["camera_id"] = serde_json::json!(cid);
+                }
+
                 let _ = http_post(port, "/api/start", Some(&payload));
                 is_streaming.store(true, Ordering::SeqCst);
-                if let (Some(btn), Some(row)) =
-                    (btn_action_weak.upgrade(), stream_row_weak.upgrade())
-                {
-                    btn.set_label("🛑 Stop & Detach");
-                    btn.remove_css_class("suggested-action");
-                    btn.add_css_class("destructive-action");
-                    row.set_title("● VIRTUAL CAMERA ACTIVE");
-                }
+                update_ui(true, "Connected", "");
             }
         }
     };
@@ -610,43 +861,162 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
     });
 
     let ssh_preview = start_stop_handler.clone();
-    let switch_preview_for_btn = switch_preview.downgrade();
+    let is_streaming_for_preview = is_streaming_state.clone();
     btn_preview.connect_clicked(move |_| {
-        if let Some(sw) = switch_preview_for_btn.upgrade() {
-            sw.set_active(true);
+        let is_running = is_streaming_for_preview.load(Ordering::SeqCst);
+        if is_running {
+            // Already streaming to /dev/video10: spawn viewer directly!
+            let _ = if which::which("mpv").is_ok() {
+                std::process::Command::new("mpv")
+                    .args(["--title=PhoneCam Preview", "av://v4l2:/dev/video10"])
+                    .spawn()
+            } else if which::which("snapshot").is_ok() {
+                std::process::Command::new("snapshot").spawn()
+            } else if which::which("ffplay").is_ok() {
+                std::process::Command::new("ffplay")
+                    .args([
+                        "-window_title",
+                        "PhoneCam Preview",
+                        "-f",
+                        "v4l2",
+                        "/dev/video10",
+                    ])
+                    .spawn()
+            } else {
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "No viewer found",
+                ))
+            };
+        } else {
+            ssh_preview();
+            glib::timeout_add_local_once(std::time::Duration::from_millis(600), || {
+                let _ = if which::which("mpv").is_ok() {
+                    std::process::Command::new("mpv")
+                        .args(["--title=PhoneCam Preview", "av://v4l2:/dev/video10"])
+                        .spawn()
+                } else if which::which("snapshot").is_ok() {
+                    std::process::Command::new("snapshot").spawn()
+                } else {
+                    std::process::Command::new("ffplay")
+                        .args([
+                            "-window_title",
+                            "PhoneCam Preview",
+                            "-f",
+                            "v4l2",
+                            "/dev/video10",
+                        ])
+                        .spawn()
+                };
+            });
         }
-        ssh_preview();
     });
 
-    // Switches
+    // Switches & user config state persistence
+    let ucfg_as = user_cfg.clone();
+    switch_auto_start.connect_active_notify(move |sw| {
+        ucfg_as.borrow_mut().auto_start = sw.is_active();
+        let _ = ucfg_as.borrow().save();
+    });
+
+    let ucfg_rot = user_cfg.clone();
+    combo_rotation.connect_selected_notify(move |combo| {
+        let rot = match combo.selected() {
+            1 => 90,
+            2 => 180,
+            3 => 270,
+            _ => 0,
+        };
+        ucfg_rot.borrow_mut().rotation = rot;
+        ucfg_rot.borrow_mut().flip_v = rot == 180;
+        let _ = ucfg_rot.borrow().save();
+        let _ = http_post(
+            port,
+            "/api/set-rotation",
+            Some(&serde_json::json!({ "rotation": rot })),
+        );
+    });
+
     let is_up_fliph = is_updating.clone();
-    switch_flip_h.connect_active_notify(move |_| {
+    let ucfg_fliph = user_cfg.clone();
+    switch_flip_h.connect_active_notify(move |sw| {
+        ucfg_fliph.borrow_mut().flip_h = sw.is_active();
+        let _ = ucfg_fliph.borrow().save();
         if !is_up_fliph.load(Ordering::SeqCst) {
             let _ = http_post(port, "/api/toggle-flip-h", None);
         }
     });
 
-    let is_up_flipv = is_updating.clone();
-    switch_flip_v.connect_active_notify(move |_| {
-        if !is_up_flipv.load(Ordering::SeqCst) {
-            let _ = http_post(port, "/api/toggle-flip-v", None);
-        }
-    });
-
     let is_up_inv = is_updating.clone();
-    switch_invert.connect_active_notify(move |_| {
+    let ucfg_inv = user_cfg.clone();
+    switch_invert.connect_active_notify(move |sw| {
+        ucfg_inv.borrow_mut().invert = sw.is_active();
+        let _ = ucfg_inv.borrow().save();
         if !is_up_inv.load(Ordering::SeqCst) {
             let _ = http_post(port, "/api/toggle-invert", None);
         }
     });
 
+    let ucfg_torch = user_cfg.clone();
+    switch_torch.connect_active_notify(move |sw| {
+        ucfg_torch.borrow_mut().torch = sw.is_active();
+        let _ = ucfg_torch.borrow().save();
+    });
+
+    let ucfg_res = user_cfg.clone();
+    combo_resolution.connect_selected_notify(move |combo| {
+        let res = match combo.selected() {
+            1 => "1280x720",
+            2 => "3840x2160",
+            3 => "2560x1440",
+            _ => "1920x1080",
+        };
+        ucfg_res.borrow_mut().resolution = res.to_string();
+        let _ = ucfg_res.borrow().save();
+    });
+
+    let ucfg_crop = user_cfg.clone();
+    combo_crop.connect_selected_notify(move |combo| {
+        let (crop, ar) = match combo.selected() {
+            1 => (None, Some("16:9")),
+            2 => (None, Some("4:3")),
+            3 => (None, Some("1:1")),
+            4 => (Some("1920:1080:0:0"), None),
+            _ => (None, None),
+        };
+        ucfg_crop.borrow_mut().crop = crop.map(|s| s.to_string());
+        ucfg_crop.borrow_mut().camera_ar = ar.map(|s| s.to_string());
+        let _ = ucfg_crop.borrow().save();
+    });
+
+    let ucfg_lens = user_cfg.clone();
+    combo_camera_lens.connect_selected_notify(move |combo| {
+        let sel = combo.selected();
+        if sel == 0 {
+            ucfg_lens.borrow_mut().camera_id = None;
+        } else if let Some(item) = combo
+            .model()
+            .and_then(|m| m.downcast::<gtk4::StringList>().ok())
+            && let Some(str_val) = item.string(sel)
+            && let Some(id_str) = str_val
+                .strip_prefix("Camera ")
+                .and_then(|s| s.split_whitespace().next())
+        {
+            ucfg_lens.borrow_mut().camera_id = Some(id_str.to_string());
+        }
+        let _ = ucfg_lens.borrow().save();
+    });
+
     // Camera facing buttons
     let rear_btn_weak = btn_camera_rear.downgrade();
     let front_btn_weak = btn_camera_front.downgrade();
+    let ucfg_rear = user_cfg.clone();
     btn_camera_rear.connect_clicked(move |_| {
         if let (Some(rear), Some(front)) = (rear_btn_weak.upgrade(), front_btn_weak.upgrade()) {
             rear.add_css_class("suggested-action");
             front.remove_css_class("suggested-action");
+            ucfg_rear.borrow_mut().facing = "back".to_string();
+            let _ = ucfg_rear.borrow().save();
             let _ = http_post(
                 port,
                 "/api/set-facing",
@@ -657,10 +1027,13 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
 
     let rear_btn_weak2 = btn_camera_rear.downgrade();
     let front_btn_weak2 = btn_camera_front.downgrade();
+    let ucfg_front = user_cfg.clone();
     btn_camera_front.connect_clicked(move |_| {
         if let (Some(rear), Some(front)) = (rear_btn_weak2.upgrade(), front_btn_weak2.upgrade()) {
             front.add_css_class("suggested-action");
             rear.remove_css_class("suggested-action");
+            ucfg_front.borrow_mut().facing = "front".to_string();
+            let _ = ucfg_front.borrow().save();
             let _ = http_post(
                 port,
                 "/api/set-facing",
@@ -672,21 +1045,28 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
     // Wi-Fi ADB actions
     let wifi_entry_weak = wifi_entry.downgrade();
     let wifi_status_weak = wifi_status_row.downgrade();
+    let btn_wifi_conn_weak_click = btn_wifi_connect.downgrade();
+    let ucfg_wifi = user_cfg.clone();
     btn_wifi_connect.connect_clicked(move |_| {
-        if let (Some(entry), Some(status_row)) =
-            (wifi_entry_weak.upgrade(), wifi_status_weak.upgrade())
-        {
+        if let (Some(entry), Some(status_row), Some(btn)) = (
+            wifi_entry_weak.upgrade(),
+            wifi_status_weak.upgrade(),
+            btn_wifi_conn_weak_click.upgrade(),
+        ) {
             let addr = entry.text().trim().to_string();
             if addr.is_empty() {
-                status_row.set_subtitle("❌ Please enter phone IP (e.g. 192.168.1.50:5555)");
+                status_row.set_subtitle("Please enter phone IP (e.g. 192.168.1.50:5555)");
                 return;
             }
-            status_row.set_subtitle(&format!("⏳ Connecting to {addr}..."));
+            btn.set_sensitive(false);
+            status_row.set_subtitle(&format!("Connecting to {addr}..."));
             let full_addr = if addr.contains(':') {
                 addr.clone()
             } else {
                 format!("{addr}:5555")
             };
+            ucfg_wifi.borrow_mut().remember_ip(&full_addr);
+            let _ = ucfg_wifi.borrow().save();
             match http_post(
                 port,
                 "/api/connect-wifi",
@@ -694,10 +1074,12 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
             ) {
                 Ok(val) => {
                     let msg = val["message"].as_str().unwrap_or("Connected");
-                    status_row.set_subtitle(&format!("✓ {msg}"));
+                    status_row.set_subtitle(msg);
+                    btn.set_sensitive(false);
                 }
                 Err(e) => {
-                    status_row.set_subtitle(&format!("❌ Connection failed: {e}"));
+                    status_row.set_subtitle(&format!("Connection failed: {e}"));
+                    btn.set_sensitive(true);
                 }
             }
         }
@@ -706,16 +1088,33 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
     let wifi_status_tcpip = wifi_status_row.downgrade();
     btn_wifi_tcpip.connect_clicked(move |_| {
         if let Some(status_row) = wifi_status_tcpip.upgrade() {
-            status_row.set_subtitle("⏳ Enabling TCP/IP mode on port 5555...");
+            status_row.set_subtitle("Enabling TCP/IP mode on port 5555...");
             match http_post(port, "/api/enable-tcpip", None) {
                 Ok(val) => {
                     let msg = val["message"].as_str().unwrap_or("TCP/IP enabled");
-                    status_row.set_subtitle(&format!("✓ {msg}. You can now unplug USB!"));
+                    status_row.set_subtitle(&format!("{msg}. You can now unplug USB!"));
                 }
                 Err(e) => {
-                    status_row.set_subtitle(&format!("❌ Failed: {e}. Is phone plugged via USB?"));
+                    status_row.set_subtitle(&format!("Failed: {e}. Is phone plugged via USB?"));
                 }
             }
+        }
+    });
+
+    // Auto-save Wi-Fi address as user types or hits enter
+    let ucfg_entry = user_cfg.clone();
+    wifi_entry.connect_changed(move |entry| {
+        let text = entry.text().trim().to_string();
+        if !text.is_empty() && (text.contains('.') || text.contains(':')) {
+            ucfg_entry.borrow_mut().remember_ip(&text);
+            let _ = ucfg_entry.borrow().save();
+        }
+    });
+
+    let btn_wifi_conn_for_enter = btn_wifi_connect.downgrade();
+    wifi_entry.connect_activate(move |_| {
+        if let Some(btn) = btn_wifi_conn_for_enter.upgrade() {
+            btn.emit_clicked();
         }
     });
 
@@ -747,7 +1146,7 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
             if let Some(lbl) = bat_lbl_rf.upgrade() {
                 if let Some(b) = st["device"]["battery_percent"].as_u64() {
                     let chg = st["device"]["is_charging"].as_bool().unwrap_or(false);
-                    lbl.set_label(&format!("🔋 {b}%{}", if chg { " ⚡" } else { "" }));
+                    lbl.set_label(&format!("{b}%{}", if chg { " (Charging)" } else { "" }));
                 } else {
                     lbl.set_label("");
                 }
@@ -757,7 +1156,7 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
             && let (Some(row), Some(arr)) = (logs_row_rf.upgrade(), logs.as_array())
             && let Some(last) = arr.last().and_then(|v| v.as_str())
         {
-            row.set_subtitle(last);
+            row.set_subtitle(&glib::markup_escape_text(last));
         }
     };
 
@@ -770,10 +1169,11 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
     let dev_row_timer = device_row.downgrade();
     let bat_lbl_timer = battery_label.downgrade();
     let logs_row_timer = logs_row.downgrade();
-    let btn_action_timer = btn_stream_action.downgrade();
-    let stream_row_timer = stream_row.downgrade();
+    let combo_lens_timer = combo_camera_lens.downgrade();
     let is_streaming_timer = is_streaming_state.clone();
     let is_updating_timer = is_updating.clone();
+    let ucfg_timer = user_cfg.clone();
+    let update_ui_timer = update_dynamic_ui.clone();
 
     glib::timeout_add_local(std::time::Duration::from_millis(1500), move || {
         let Some(row) = dev_row_timer.upgrade() else {
@@ -781,6 +1181,29 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
         };
 
         if let Ok(st) = http_get(port, "/api/status") {
+            if let Some(cams) = st.get("cameras").and_then(|c| c.as_array())
+                && !cams.is_empty()
+                && let Some(combo) = combo_lens_timer.upgrade()
+            {
+                let current_count = combo
+                    .model()
+                    .and_then(|m| m.downcast::<gtk4::StringList>().ok())
+                    .map(|m| m.n_items())
+                    .unwrap_or(0);
+                let target_count = cams.len() as u32 + 1;
+                if current_count != target_count {
+                    let mut items = vec!["Default Camera".to_string()];
+                    for c in cams {
+                        let cid = c["id"].as_u64().unwrap_or(0);
+                        let facing = c["facing"].as_str().unwrap_or("");
+                        let res = c["resolution"].as_str().unwrap_or("");
+                        items.push(format!("Camera {cid} ({facing}, {res})"));
+                    }
+                    let item_refs: Vec<&str> = items.iter().map(|s| s.as_str()).collect();
+                    let new_model = gtk4::StringList::new(&item_refs);
+                    combo.set_model(Some(&new_model));
+                }
+            }
             if let Some(dev) = st.get("device") {
                 let status = dev["status"].as_str().unwrap_or("NotFound");
                 let brand = dev["brand"].as_str().unwrap_or("");
@@ -790,6 +1213,12 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
                 if status == "Connected" {
                     row.set_title(&format!("{} {}", brand.to_uppercase(), model));
                     row.set_subtitle(&format!("ADB Serial: {serial} (Connected)"));
+                    if !serial.is_empty()
+                        && ucfg_timer.borrow().last_device_serial.as_deref() != Some(serial)
+                    {
+                        ucfg_timer.borrow_mut().last_device_serial = Some(serial.to_string());
+                        let _ = ucfg_timer.borrow().save();
+                    }
                 } else if status == "Unauthorized" {
                     row.set_title("Unauthorized Device");
                     row.set_subtitle("Tap 'Allow' on your phone to authorize USB debugging");
@@ -802,7 +1231,7 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
             if let Some(lbl) = bat_lbl_timer.upgrade() {
                 if let Some(b) = st["device"]["battery_percent"].as_u64() {
                     let chg = st["device"]["is_charging"].as_bool().unwrap_or(false);
-                    lbl.set_label(&format!("🔋 {b}%{}", if chg { " ⚡" } else { "" }));
+                    lbl.set_label(&format!("{b}%{}", if chg { " (Charging)" } else { "" }));
                 } else {
                     lbl.set_label("");
                 }
@@ -810,30 +1239,25 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
 
             let streaming = st["is_streaming"].as_bool().unwrap_or(false);
             is_streaming_timer.store(streaming, Ordering::SeqCst);
-            if let (Some(btn), Some(s_row)) =
-                (btn_action_timer.upgrade(), stream_row_timer.upgrade())
-            {
-                is_updating_timer.store(true, Ordering::SeqCst);
-                if streaming {
-                    btn.set_label("🛑 Stop & Detach");
-                    btn.remove_css_class("suggested-action");
-                    btn.add_css_class("destructive-action");
-                    s_row.set_title("● VIRTUAL CAMERA ACTIVE");
-                } else {
-                    btn.set_label("🚀 Start Webcam");
-                    btn.remove_css_class("destructive-action");
-                    btn.add_css_class("suggested-action");
-                    s_row.set_title("VIRTUAL CAMERA OFFLINE");
-                }
-                is_updating_timer.store(false, Ordering::SeqCst);
-            }
+            let dev_status = st
+                .get("device")
+                .and_then(|d| d["status"].as_str())
+                .unwrap_or("NotFound");
+            let dev_serial = st
+                .get("device")
+                .and_then(|d| d["serial"].as_str())
+                .unwrap_or("");
+
+            is_updating_timer.store(true, Ordering::SeqCst);
+            update_ui_timer(streaming, dev_status, dev_serial);
+            is_updating_timer.store(false, Ordering::SeqCst);
         }
 
         if let Ok(logs) = http_get(port, "/api/logs")
             && let (Some(row), Some(arr)) = (logs_row_timer.upgrade(), logs.as_array())
             && let Some(last) = arr.last().and_then(|v| v.as_str())
         {
-            row.set_subtitle(last);
+            row.set_subtitle(&glib::markup_escape_text(last));
         }
 
         glib::ControlFlow::Continue
@@ -859,6 +1283,14 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
         _ => glib::Propagation::Proceed,
     });
     window.add_controller(key_controller);
+
+    // Auto-start webcam if configured
+    if initial_cfg.auto_start {
+        let btn_auto = btn_stream_action.clone();
+        glib::timeout_add_local_once(std::time::Duration::from_millis(500), move || {
+            btn_auto.emit_clicked();
+        });
+    }
 
     // Window Close Request: ensure clean teardown of /dev/video10
     window.connect_close_request(move |_| {

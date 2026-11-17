@@ -90,7 +90,7 @@ if command -v qml6 >/dev/null 2>&1; then
     python3 -c '
 import subprocess, sys
 
-cmd = ["qml6", "ui/Main.qml"]
+cmd = ["qml6", "src/ui/Main.qml"]
 try:
     p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     try:
@@ -109,17 +109,25 @@ except Exception as e:
     print("Error:", e)
     sys.exit(1)
 '
-    pass "ui/Main.qml loaded cleanly in qml6 runtime"
+    pass "src/ui/Main.qml loaded cleanly in qml6 runtime"
 else
     pass "qml6 runtime not available (skipped)"
 fi
 
 # 4b. Qt Quick UI Automated Click & TestID Test Suite
-echo "==> Step 4b: Testing QML UI Button Clicks & TestIDs..."
+echo "==> Step 4b: Testing QML & GTK4 UI Button Clicks & TestIDs..."
 if ./tests/test-ui.sh; then
-    pass "Qt Quick UI button click simulation & testIDs passed"
+    pass "UI button click simulation & testIDs passed"
 else
-    fail "Qt Quick UI button click simulation failed"
+    fail "UI button click simulation failed"
+fi
+
+# 4c. Terminal TUI Dashboard E2E Test
+echo "==> Step 4c: Testing Terminal TUI Dashboard E2E..."
+if ./tests/test-tui-e2e.sh; then
+    pass "Terminal TUI dashboard auto-detach and display passed"
+else
+    fail "Terminal TUI dashboard test failed"
 fi
 
 # 5. Package structure verification
@@ -129,16 +137,21 @@ REQUIRED_FILES=(
     "LICENSE"
     "README.md"
     "AGENTS.md"
+    "config.example.toml"
     "pkgbuild/PKGBUILD"
     "pkgbuild/phonecam.desktop"
     "scripts/install.sh"
     "scripts/uninstall.sh"
+    "scripts/capture-screenshot.sh"
     "src/lib.rs"
     "src/main.rs"
     "src/ui/mod.rs"
     "src/ui/gtk_app.rs"
+    "src/ui/theme.css"
+    "src/ui/Main.qml"
     "tests/ui_test.rs"
-    "ui/Main.qml"
+    "tests/test-tui-e2e.sh"
+    "tests/test-ocr-e2e.sh"
     "tests/tst_ui.qml"
     "tests/test-ui.sh"
 )
@@ -169,11 +182,11 @@ rm -f "$TMP_SUDOERS"
 
 echo "=========================================================="
 if [[ $FAILED -eq 0 ]]; then
-    echo "  🎉 All E2E Tests Passed Successfully!"
+    echo "  [PASS] All E2E Tests Passed Successfully!"
     echo "=========================================================="
     exit 0
 else
-    echo "  ❌ $FAILED test(s) failed."
+    echo "  [FAIL] $FAILED test(s) failed."
     echo "=========================================================="
     exit 1
 fi

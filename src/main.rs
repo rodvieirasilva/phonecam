@@ -121,6 +121,7 @@ async fn main() -> Result<()> {
         fps: cli.fps,
         flip_h: cli.mirror,
         flip_v: cli.flip_v,
+        rotation: cli.rotation,
         invert: cli.invert,
         preview: cli.preview,
         torch: cli.torch,
@@ -141,7 +142,12 @@ async fn main() -> Result<()> {
         let mut mgr = StreamManager::new(config.clone());
         mgr.start(config)?;
         println!("Streaming started. Press Ctrl+C to stop.");
-        tokio::signal::ctrl_c().await?;
+        let mut term_sig =
+            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {},
+            _ = term_sig.recv() => {},
+        }
         mgr.stop()?;
         return Ok(());
     }

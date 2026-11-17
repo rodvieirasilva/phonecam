@@ -21,6 +21,7 @@ fn test_cli_defaults() {
     assert!(!cli.invert);
     assert!(!cli.preview);
     assert!(!cli.torch);
+    assert!(!cli.auto_start);
     assert_eq!(cli.video_nr, 10);
     assert_eq!(cli.port, 41789);
 }
@@ -30,6 +31,7 @@ fn test_cli_flags() {
     let args = [
         "phonecam",
         "--tui",
+        "--auto-start",
         "-f",
         "front",
         "--camera-id",
@@ -55,6 +57,7 @@ fn test_cli_flags() {
 
     let cli = Cli::try_parse_from(args).unwrap();
     assert!(cli.tui);
+    assert!(cli.auto_start);
     assert_eq!(cli.facing, "front");
     assert_eq!(cli.camera_id, Some(1));
     assert_eq!(cli.res, "1280x720");

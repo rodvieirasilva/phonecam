@@ -14,7 +14,7 @@ use crate::config::AppConfig;
 use crate::pipeline::StreamManager;
 
 pub fn run_tui(config: AppConfig) -> Result<()> {
-    println!("\n🔍 Scanning for connected smartphone via ADB...");
+    println!("\nScanning for connected smartphone via ADB...");
 
     // 1. Device validation loop
     let device = loop {
@@ -24,7 +24,7 @@ pub fn run_tui(config: AppConfig) -> Result<()> {
                     break dev;
                 }
                 DeviceStatus::Unauthorized => {
-                    eprintln!("\n⚠️  DEVICE UNAUTHORIZED: {}", dev.serial);
+                    eprintln!("\n[WARN] Device unauthorized: {}", dev.serial);
                     eprintln!(
                         "   Please check your phone's screen and tap: 'Allow USB debugging'."
                     );
@@ -32,14 +32,14 @@ pub fn run_tui(config: AppConfig) -> Result<()> {
                     std::thread::sleep(Duration::from_secs(2));
                 }
                 DeviceStatus::NotFound => {
-                    eprintln!("\n❌ NO DEVICE DETECTED");
+                    eprintln!("\n[INFO] No device detected");
                     eprintln!("   1. Connect your phone using a USB-C data cable.");
                     eprintln!("   2. Enable USB Debugging in Settings > Developer Options.");
                     eprintln!("   Retrying in 3 seconds (Press Ctrl+C to cancel)...");
                     std::thread::sleep(Duration::from_secs(3));
                 }
                 DeviceStatus::Offline => {
-                    eprintln!("\n⚠️  DEVICE OFFLINE: {}", dev.serial);
+                    eprintln!("\n[WARN] Device offline: {}", dev.serial);
                     eprintln!("   Reconnecting ADB server...");
                     let _ = std::process::Command::new("adb")
                         .args(["reconnect"])
@@ -48,21 +48,21 @@ pub fn run_tui(config: AppConfig) -> Result<()> {
                 }
             },
             Err(e) => {
-                eprintln!("\n❌ ADB Error: {}", e);
+                eprintln!("\n[ERROR] ADB Error: {}", e);
                 std::thread::sleep(Duration::from_secs(3));
             }
         }
     };
 
     println!(
-        "\n✅ Connected: {} {} ({})",
+        "\n[OK] Connected: {} {} ({})",
         device.brand.to_uppercase(),
         device.model,
         device.serial
     );
     if let Some(pct) = device.battery_percent {
         println!(
-            "🔋 Battery: {}%{}",
+            "Battery: {}%{}",
             pct,
             if device.is_charging.unwrap_or(false) {
                 " (Charging)"
@@ -76,11 +76,11 @@ pub fn run_tui(config: AppConfig) -> Result<()> {
     let mut mgr = StreamManager::new(config.clone());
 
     println!(
-        "🚀 Starting virtual webcam stream to {}...",
+        "Starting virtual webcam stream to {}...",
         config.video_device_path()
     );
     if let Err(e) = mgr.start(config.clone()) {
-        eprintln!("\n❌ Failed to start camera stream: {}", e);
+        eprintln!("\n[ERROR] Failed to start camera stream: {}", e);
         return Err(e);
     }
 
@@ -110,15 +110,15 @@ pub fn run_tui(config: AppConfig) -> Result<()> {
     println!();
 
     if any_key_pressed {
-        println!("\n🛑 Key pressed: Stopping stream and detaching virtual device...");
+        println!("\nKey pressed: Stopping stream and detaching virtual device...");
     } else {
-        println!("\n⚠️ Stream process terminated.");
+        println!("\nStream process terminated.");
     }
 
     // 5. Clean teardown and auto-detach
     let _ = mgr.stop();
     println!(
-        "✨ Virtual webcam {} detached cleanly. Done.\n",
+        "Virtual webcam {} detached cleanly. Done.\n",
         config.video_device_path()
     );
 
@@ -147,7 +147,7 @@ fn render_dashboard(dev: &crate::adb::DeviceInfo, cfg: &AppConfig) {
             "{}%{}",
             dev.battery_percent.unwrap_or(0),
             if dev.is_charging.unwrap_or(false) {
-                " ⚡"
+                " (Charging)"
             } else {
                 ""
             }

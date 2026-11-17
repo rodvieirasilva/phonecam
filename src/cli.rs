@@ -8,7 +8,7 @@ use clap::Parser;
     about = "High-performance smartphone webcam virtual device manager for Omarchy"
 )]
 pub struct Cli {
-    /// Launch the Qt Quick desktop user interface (default)
+    /// Launch the GTK4 / Libadwaita desktop user interface (default)
     #[arg(long)]
     pub gui: bool,
 
@@ -64,6 +64,10 @@ pub struct Cli {
     #[arg(long)]
     pub flip_v: bool,
 
+    /// Clockwise capture rotation in degrees (0, 90, 180, 270)
+    #[arg(long, default_value_t = 0)]
+    pub rotation: u32,
+
     /// Invert video colors (negative effect)
     #[arg(long, short = 'i')]
     pub invert: bool,
@@ -75,6 +79,10 @@ pub struct Cli {
     /// Turn on camera flashlight / torch
     #[arg(long)]
     pub torch: bool,
+
+    /// Automatically start streaming when app is opened
+    #[arg(long)]
+    pub auto_start: bool,
 
     /// Connect to smartphone over Wi-Fi via ADB (e.g. 192.168.1.50:5555)
     #[arg(long)]

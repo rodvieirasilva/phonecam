@@ -44,6 +44,11 @@ pub struct WifiConnectPayload {
     pub address: String,
 }
 
+#[derive(Deserialize)]
+pub struct RotationPayload {
+    pub rotation: u32,
+}
+
 pub fn create_router(state: Arc<AppState>) -> Router {
     Router::new()
         .route("/api/status", get(get_status))
@@ -51,6 +56,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/api/stop", post(stop_stream))
         .route("/api/toggle-flip-h", post(toggle_flip_h))
         .route("/api/toggle-flip-v", post(toggle_flip_v))
+        .route("/api/set-rotation", post(set_rotation))
         .route("/api/toggle-invert", post(toggle_invert))
         .route("/api/set-facing", post(set_facing))
         .route("/api/select-camera", post(select_camera))
@@ -156,6 +162,22 @@ async fn toggle_flip_v(
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     Ok(Json(
         serde_json::json!({ "success": true, "flip_v": new_val }),
+    ))
+}
+
+async fn set_rotation(
+    State(state): State<Arc<AppState>>,
+    Json(payload): Json<RotationPayload>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let mut mgr = state.stream_mgr.lock().unwrap();
+    let rot = payload.rotation;
+    mgr.update_config(|cfg| {
+        cfg.rotation = rot;
+        cfg.flip_v = rot == 180;
+    })
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(Json(
+        serde_json::json!({ "success": true, "rotation": rot }),
     ))
 }
 

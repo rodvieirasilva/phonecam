@@ -147,9 +147,48 @@ phonecam --detach
 
 ---
 
+## Configuration (`config.toml`)
+
+PhoneCam persists all preferences (selected camera, resolution, rotation, flip, auto-start, and Wi-Fi addresses) automatically in `~/.config/phonecam/config.toml`.
+
+An annotated template is provided in [`config.example.toml`](config.example.toml):
+
+```toml
+# Default IP address and port for ADB over Wi-Fi
+last_ip = "192.168.1.50:5555"
+
+# List of remembered IP addresses
+saved_ips = [
+    "192.168.1.50:5555"
+]
+
+# Camera facing: "back" or "front"
+facing = "back"
+
+# Target capture resolution: "1920x1080", "1280x720", "3840x2160"
+resolution = "1920x1080"
+
+# Mirror stream horizontally (natural webcam preview)
+flip_h = false
+
+# Stream rotation: 0 (Normal), 90 (Clockwise), 180 (Inverted), 270 (Counter-Clockwise)
+rotation = 0
+
+# Invert stream colors (color negative effect)
+invert = false
+
+# Enable torch / flashlight (back camera only)
+torch = false
+
+# Automatically start streaming webcam when PhoneCam launches
+auto_start = false
+```
+
+---
+
 ## Testing & Verification
 
-PhoneCam features a comprehensive test suite including **fake phone E2E tests** that mock ADB and scrcpy without needing physical hardware:
+PhoneCam features an extensive automated test suite covering unit tests, integration tests, GTK4 widget interactions, TUI PTY sessions, and live video stream OCR verification:
 
 ```bash
 # Run all unit and integration tests
@@ -161,18 +200,21 @@ cargo test --test fake_phone_e2e
 # Run Native GTK4 / Libadwaita UI test suite (click simulation & widget tree)
 cargo test --test ui_test
 
+# Run Terminal TUI dashboard PTY & keypress E2E test
+./tests/test-tui-e2e.sh
+
+# Run Video Stream Hardware OCR transformation verification
+./tests/test-ocr-e2e.sh
+
 # Run complete UI test suite
 ./tests/test-ui.sh
 
 # Run complete package lifecycle verification
 ./tests/test-package-e2e.sh
-
-# Run code coverage report
-cargo llvm-cov --summary-only
 ```
 
-### UI TestIDs (`objectName`) Reference
-For end-to-end automation and testing, all interactive elements in `ui/Main.qml` expose standard `objectName` test IDs:
+### UI TestIDs (`widget_name` / `objectName`) Reference
+For end-to-end automation and testing, all interactive elements in `src/ui/gtk_app.rs` and `src/ui/Main.qml` expose standard test IDs:
 
 | TestID (`objectName`) | Control Type | Description |
 | :--- | :--- | :--- |
@@ -181,18 +223,19 @@ For end-to-end automation and testing, all interactive elements in `ui/Main.qml`
 | `combo-camera-lens` | ComboBox | Selects specific phone lens sensor |
 | `combo-resolution` | ComboBox | Selects resolution (1080p, 720p, 4K, 2K) |
 | `combo-crop` | ComboBox | Selects crop preset (16:9, 4:3, 1:1, custom) |
+| `combo-rotation` | ComboBox | Selects rotation (0°, 90°, 180°, 270°) |
 | `switch-flip-h` | Switch | Horizontal flip / mirror |
-| `switch-flip-v` | Switch | Vertical flip (180°) |
 | `switch-invert` | Switch | Hardware color inversion filter |
 | `switch-torch` | Switch | Flashlight / studio torch |
-| `switch-preview` | Switch | Live desktop preview window |
-| `btn-preview` | Button | Opens preview and starts stream |
+| `switch-auto-start` | Switch | Auto-starts stream on launch |
+| `btn-preview` | Button | Opens live preview window for `/dev/video10` |
+| `btn-launch-camera` | Button | Launches native Camera app (`snapshot`) |
 | `btn-stream-action` | Button | Starts / stops `/dev/video10` stream |
-| `btn-theme-swatch-<0..5>` | MouseArea | Switches dynamic Omarchy accent color |
 | `btn-refresh` | Button | Manually polls ADB device status & logs |
 | `input-wifi-address` | TextField | Enters phone IP:Port for wireless ADB |
 | `btn-wifi-connect` | Button | Connects to phone wirelessly via ADB |
 | `btn-wifi-tcpip` | Button | Enables TCP/IP port 5555 on USB phone |
+| `link-adb-docs` | LinkButton | Opens Android debugging setup guide |
 | `text-wifi-status` | Text | Displays live status and wireless guidance |
 
 ---

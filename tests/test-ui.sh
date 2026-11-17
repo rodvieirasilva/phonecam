@@ -25,6 +25,6 @@ if command -v qmltestrunner >/dev/null 2>&1 || [ -x "/usr/lib/qt6/bin/qmltestrun
 fi
 
 echo "=========================================================="
-echo "  🎉 All UI Tests Passed Successfully!"
+echo "  [PASS] All UI Tests Passed Successfully!"
 echo "=========================================================="
 exit 0

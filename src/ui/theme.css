@@ -1,0 +1,26 @@
+@define-color window_bg_color {bg};
+@define-color window_fg_color {fg};
+@define-color view_bg_color {bg};
+@define-color view_fg_color {fg};
+@define-color headerbar_bg_color {dark_bg};
+@define-color headerbar_fg_color {fg};
+@define-color card_bg_color {card_bg};
+@define-color card_fg_color {fg};
+@define-color accent_color {accent};
+@define-color accent_bg_color {accent};
+@define-color accent_fg_color {accent_fg};
+
+window, window.background, .background, preferencespage, scrolledwindow, viewport {
+    background-color: {bg};
+    color: {fg};
+}
+
+headerbar {
+    background-color: {dark_bg};
+    color: {fg};
+}
+
+.boxed-list, row {
+    background-color: {card_bg};
+    color: {fg};
+}

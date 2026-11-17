@@ -14,7 +14,7 @@ echo "=========================================================="
 
 # 1. Check ADB daemon
 if ! command -v adb >/dev/null 2>&1; then
-    echo "❌ Error: 'adb' is not installed."
+    echo "[ERROR] 'adb' is not installed."
     exit 1
 fi
 
@@ -22,7 +22,7 @@ fi
 DEVICES=$(adb devices | grep -v "List of devices" | grep "device$" || true)
 
 if [[ -z "$DEVICES" ]]; then
-    echo "ℹ️  No active Android emulator or phone detected in 'adb devices'."
+    echo "[INFO] No active Android emulator or phone detected in 'adb devices'."
     echo ""
     echo "To run an Android emulator for testing:"
     echo "  1. If Android SDK is installed:"
@@ -39,7 +39,7 @@ SERIAL=$(echo "$DEVICES" | head -n 1 | awk '{print $1}')
 MODEL=$(adb -s "$SERIAL" shell getprop ro.product.model 2>/dev/null || echo "Generic Device")
 BRAND=$(adb -s "$SERIAL" shell getprop ro.product.brand 2>/dev/null || echo "Android")
 
-echo "✅ Detected Android Target:"
+echo "[OK] Detected Android Target:"
 echo "   Serial: $SERIAL"
 echo "   Model:  $BRAND $MODEL"
 
@@ -65,11 +65,11 @@ if [[ -e /dev/video10 ]]; then
     wait "$STREAM_PID" 2>/dev/null || true
     cargo run -- --detach >/dev/null 2>&1 || true
 
-    echo "✅ Live streaming verified without errors!"
+    echo "[OK] Live streaming verified without errors!"
 else
-    echo "ℹ️ /dev/video10 not initialized yet. Skipping live frame sink."
+    echo "[INFO] /dev/video10 not initialized yet. Skipping live frame sink."
 fi
 
 echo "=========================================================="
-echo "  🎉 Android Live Target Tests Completed Successfully!"
+echo "  Android Live Target Tests Completed Successfully!"
 echo "=========================================================="

@@ -18,8 +18,9 @@ pub fn get_sudo_password() -> Option<String> {
     if let Ok(content) = fs::read_to_string(&cred_path) {
         for line in content.lines() {
             let line = line.trim();
-            if line.starts_with("LINUX_PASSWORD=") {
-                let pass = line
+            let clean_line = line.strip_prefix("export ").unwrap_or(line);
+            if clean_line.starts_with("LINUX_PASSWORD=") {
+                let pass = clean_line
                     .trim_start_matches("LINUX_PASSWORD=")
                     .trim_matches('"')
                     .trim_matches('\'');
@@ -49,23 +50,13 @@ pub fn run_elevated(cmd: &str, args: &[&str]) -> Result<String> {
         }
     }
 
-    // Try passwordless sudo first
-    let test_sudo = Command::new("sudo").args(["-n", "true"]).output();
+    // Try passwordless sudo directly for this exact command
+    let nopasswd_sudo = Command::new("sudo").arg("-n").arg(cmd).args(args).output();
 
-    if let Ok(res) = test_sudo
+    if let Ok(res) = nopasswd_sudo
         && res.status.success()
     {
-        let output = Command::new("sudo")
-            .arg(cmd)
-            .args(args)
-            .output()
-            .with_context(|| format!("Failed to run sudo: {} {:?}", cmd, args))?;
-        if output.status.success() {
-            return Ok(String::from_utf8_lossy(&output.stdout).to_string());
-        } else {
-            let err = String::from_utf8_lossy(&output.stderr).to_string();
-            anyhow::bail!("Elevated command failed: {}", err);
-        }
+        return Ok(String::from_utf8_lossy(&res.stdout).to_string());
     }
 
     // Try sudo with credentials password
@@ -136,6 +127,6 @@ pub fn get_omarchy_accent() -> String {
             }
         }
     }
-    // Fallback Omarchy yellow accent
-    "#FFD60A".to_string()
+    // Fallback Omarchy blue accent
+    "#7aa2f7".to_string()
 }

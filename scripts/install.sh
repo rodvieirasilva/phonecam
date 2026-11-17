@@ -50,20 +50,31 @@ if run_sudo install -Dm755 "target/release/phonecam" "$BIN_TARGET" 2>/dev/null; 
     echo "  Installed system-wide: $BIN_TARGET"
 fi
 
-echo "==> Installing QML UI and resources..."
+echo "==> Installing UI and resources..."
 mkdir -p "$USER_SHARE/ui"
-cp -f "ui/Main.qml" "$USER_SHARE/ui/Main.qml"
+cp -f "src/ui/Main.qml" "$USER_SHARE/ui/Main.qml"
 
 if run_sudo mkdir -p "$SHARE_TARGET/ui" 2>/dev/null; then
-    run_sudo cp -f "ui/Main.qml" "$SHARE_TARGET/ui/Main.qml"
+    run_sudo cp -f "src/ui/Main.qml" "$SHARE_TARGET/ui/Main.qml"
+    run_sudo cp -f "config.example.toml" "$SHARE_TARGET/config.example.toml"
 fi
 
-echo "==> Installing Desktop Launchers..."
-mkdir -p "$(dirname "$USER_DESKTOP")"
-cp -f "pkgbuild/phonecam.desktop" "$USER_DESKTOP"
+echo "==> Installing configuration template..."
+mkdir -p "$HOME/.config/phonecam"
+cp -f "config.example.toml" "$HOME/.config/phonecam/config.example.toml"
+if [[ ! -f "$HOME/.config/phonecam/config.toml" ]]; then
+    cp -f "config.example.toml" "$HOME/.config/phonecam/config.toml"
+fi
 
+echo "==> Installing Desktop Launcher..."
 if run_sudo cp -f "pkgbuild/phonecam.desktop" "$DESKTOP_TARGET" 2>/dev/null; then
     echo "  Installed desktop entry: $DESKTOP_TARGET"
+    # Remove user-level desktop file if system-level exists to avoid duplicate menu entries
+    rm -f "$USER_DESKTOP"
+else
+    mkdir -p "$(dirname "$USER_DESKTOP")"
+    cp -f "pkgbuild/phonecam.desktop" "$USER_DESKTOP"
+    echo "  Installed desktop entry: $USER_DESKTOP"
 fi
 
 echo "==> Installing Icons..."
@@ -126,38 +137,30 @@ if [[ ! -f "$SUDOERS_FILE" ]]; then
     echo "  Configured passwordless v4l2loopback management in $SUDOERS_FILE"
 fi
 
-# Remove old samsung-webcam launcher if present
-rm -f "$HOME/.local/share/applications/samsung-webcam.desktop" 2>/dev/null || true
+# 5. Grant desktop camera portal permissions to camera preview apps (e.g. Snapshot)
+if command -v busctl >/dev/null 2>&1; then
+    busctl --user call org.freedesktop.impl.portal.PermissionStore /org/freedesktop/impl/portal/PermissionStore org.freedesktop.impl.portal.PermissionStore SetPermission sbssas "devices" true "camera" "org.gnome.Snapshot" 1 "yes" 2>/dev/null || true
+    busctl --user call org.freedesktop.impl.portal.PermissionStore /org/freedesktop/impl/portal/PermissionStore org.freedesktop.impl.portal.PermissionStore SetPermission sbssas "devices" true "camera" "snapshot" 1 "yes" 2>/dev/null || true
+fi
 
-echo "==> Updating Omarchy Menu configuration..."
+# Remove old samsung-webcam and duplicate local launchers
+rm -f "$HOME/.local/share/applications/samsung-webcam.desktop" 2>/dev/null || true
+rm -f "$HOME/.local/share/applications/phonecam.desktop" 2>/dev/null || true
+
+echo "==> Consolidating Omarchy application launcher (single entry)..."
 MENU_EXT="$HOME/.config/omarchy/extensions/omarchy-menu.jsonc"
 if [[ -f "$MENU_EXT" ]]; then
     python3 -c '
-import json, re
-
 path = "'"$MENU_EXT"'"
 with open(path, "r") as f:
     content = f.read()
-
-# Replace or add phonecam entries
-if "phonecam" not in content:
-    idx = content.rfind("}")
-    if idx != -1:
-        entry = """
-  // PhoneCam - Smartphone Virtual Webcam (Rust & GTK4)
-  "phonecam": {
-    "icon": "",
-    "label": "PhoneCam",
-    "aliases": ["webcam", "camera", "phonecam"],
-    "action": "phonecam"
-  },
-"""
-        new_content = content[:idx] + entry + content[idx:]
-        with open(path, "w") as f:
-            f.write(new_content)
-        print("  Added PhoneCam entry to omarchy-menu.jsonc")
-else:
-    print("  PhoneCam already present in omarchy-menu.jsonc")
+import re
+# Strip out manual phonecam blocks to avoid duplicate entries in menu
+cleaned = re.sub(r"\s*// PhoneCam[^\n]*\n\s*\"phonecam\":\s*\{[^}]*\},?", "", content)
+cleaned = re.sub(r"\s*\"phonecam\":\s*\{[^}]*\},?", "", cleaned)
+with open(path, "w") as f:
+    f.write(cleaned)
+print("  Verified single clean entry via /usr/share/applications/phonecam.desktop")
 ' || true
 fi
 

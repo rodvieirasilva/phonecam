@@ -12,7 +12,7 @@ TestCase {
     Loader {
         id: mainLoader
         active: true
-        source: "../ui/Main.qml"
+        source: "../src/ui/Main.qml"
     }
 
     property var win: mainLoader.item
@@ -125,24 +125,11 @@ TestCase {
         compare(win.showPreview, false, "Preview disabled via click");
     }
 
-    function test_4_simulate_click_theme_swatches() {
-        // Swatch 1: Cyber Emerald (#10B981)
-        var swatch1 = getControl("btn-theme-swatch-1");
-        verify(swatch1 !== null, "Found theme swatch 1");
-        mouseClick(swatch1);
-        compare(win.accentColor, "#10B981", "Accent switched to Cyber Emerald");
-
-        // Swatch 2: Sky Blue (#38BDF8)
-        var swatch2 = getControl("btn-theme-swatch-2");
-        verify(swatch2 !== null, "Found theme swatch 2");
-        mouseClick(swatch2);
-        compare(win.accentColor, "#38BDF8", "Accent switched to Sky Blue");
-
-        // Swatch 0: Omarchy Gold (#FFD60A)
-        var swatch0 = getControl("btn-theme-swatch-0");
-        verify(swatch0 !== null, "Found theme swatch 0");
-        mouseClick(swatch0);
-        compare(win.accentColor, "#FFD60A", "Accent switched to Omarchy Gold");
+    function test_4_system_theme_follows_omarchy_blue() {
+        // App follows system Omarchy blue theme and has no manual in-app swatches
+        compare(win.accentColor, "#7aa2f7", "Initial accent color is Omarchy Blue");
+        var swatch = getControl("btn-theme-swatch-0");
+        compare(swatch, null, "Manual theme swatches removed: app dynamically follows Omarchy theme");
     }
 
     function test_5_combobox_and_preview_button() {

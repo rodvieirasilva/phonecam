@@ -1,0 +1,51 @@
+# ==============================================================================
+# PhoneCam Configuration Template
+# Path: ~/.config/phonecam/config.toml
+# ==============================================================================
+
+# Default IP address and port for ADB over Wi-Fi
+last_ip = "192.168.1.50:5555"
+
+# List of remembered IP addresses for ADB over Wi-Fi
+saved_ips = [
+    "192.168.1.50:5555"
+]
+
+# Camera facing: "back" or "front"
+facing = "back"
+
+# Specific camera sensor ID (e.g. "0" for main wide, "1" for ultrawide, "2" for front)
+# camera_id = "0"
+
+# Target capture resolution: "1920x1080", "1280x720", "3840x2160"
+resolution = "1920x1080"
+
+# Crop preset / framing aspect ratio: "16:9", "4:3", "1:1"
+# crop = "16:9"
+
+# Aspect ratio constraint for camera sensor
+# camera_ar = "16:9"
+
+# Mirror stream horizontally (natural webcam preview)
+flip_h = false
+
+# Legacy vertical flip
+flip_v = false
+
+# Stream rotation: 0 (Normal), 90 (Clockwise), 180 (Inverted), 270 (Counter-Clockwise)
+rotation = 0
+
+# Invert stream colors (color negative effect)
+invert = false
+
+# Enable torch / flashlight (back camera only)
+torch = false
+
+# Open desktop preview window automatically
+preview = false
+
+# Automatically start streaming webcam when PhoneCam launches
+auto_start = false
+
+# Serial number of the last connected device
+# last_device_serial = ""
