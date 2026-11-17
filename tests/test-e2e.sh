@@ -130,6 +130,14 @@ else
     fail "Terminal TUI dashboard test failed"
 fi
 
+# 4d. Performance, Memory, CPU & Teardown E2E Test
+echo "==> Step 4d: Testing Performance, Memory, CPU & Teardown E2E..."
+if ./tests/test-perf-e2e.sh; then
+    pass "Performance, Memory, CPU, and single-instance teardown passed"
+else
+    fail "Performance, Memory, CPU & Teardown test failed"
+fi
+
 # 5. Package structure verification
 echo "==> Step 5: Testing Repository & Documentation Structure..."
 REQUIRED_FILES=(
@@ -145,13 +153,16 @@ REQUIRED_FILES=(
     "scripts/capture-screenshot.sh"
     "src/lib.rs"
     "src/main.rs"
+    "src/instance.rs"
     "src/ui/mod.rs"
     "src/ui/gtk_app.rs"
     "src/ui/theme.css"
     "src/ui/Main.qml"
+    "tests/instance_tests.rs"
     "tests/ui_test.rs"
     "tests/test-tui-e2e.sh"
     "tests/test-ocr-e2e.sh"
+    "tests/test-perf-e2e.sh"
     "tests/tst_ui.qml"
     "tests/test-ui.sh"
 )

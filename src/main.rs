@@ -128,6 +128,21 @@ async fn main() -> Result<()> {
         port: cli.port,
     };
 
+    // Exclusive persistent modes: TUI, headless stream, or desktop GUI
+    let _instance_lock = match phonecam::instance::SingleInstanceLock::acquire() {
+        Ok(lock) => lock,
+        Err(e) => {
+            eprintln!("{}", e);
+            if !cli.tui && !cli.start {
+                // Focus running GUI instance if running on Hyprland
+                let _ = Command::new("hyprctl")
+                    .args(["dispatch", "focuswindow", "PhoneCam"])
+                    .output();
+            }
+            std::process::exit(1);
+        }
+    };
+
     // 4. Interactive TUI mode (auto-detach on any key)
     if cli.tui {
         return tui::run_tui(config);
@@ -171,6 +186,28 @@ async fn run_gui(config: AppConfig) -> Result<()> {
     // Spawn the local API server in the background
     tokio::spawn(async move {
         axum::serve(listener, router).await.unwrap();
+    });
+
+    // Handle termination signals (SIGINT, SIGTERM) to guarantee hardware teardown
+    let app_state_term = app_state.clone();
+    tokio::spawn(async move {
+        let mut term_sig =
+            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).ok();
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {},
+            _ = async {
+                if let Some(ref mut sig) = term_sig {
+                    sig.recv().await;
+                } else {
+                    std::future::pending::<()>().await;
+                }
+            } => {},
+        }
+        info!("Termination signal received, tearing down virtual device...");
+        if let Ok(mut mgr) = app_state_term.stream_mgr.lock() {
+            let _ = mgr.stop();
+        }
+        std::process::exit(0);
     });
 
     #[cfg(feature = "gui")]

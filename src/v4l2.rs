@@ -36,11 +36,23 @@ pub fn setup_loopback_device(video_nr: u32, card_label: &str) -> Result<PathBuf>
         // If writable by current user, return immediately with zero root execution
         if let Ok(file) = fs::OpenOptions::new().write(true).open(&dev_buf) {
             drop(file);
+            set_as_default_camera();
             return Ok(dev_buf);
         }
         // Otherwise fix permissions via one-time elevated chmod
         let _ = run_elevated("chmod", &["666", &dev_path]);
+        set_as_default_camera();
         return Ok(dev_buf);
+    }
+
+    // If module is already loaded but the target video device is missing,
+    // unload first to ensure clean single-device initialization with video_nr.
+    if is_module_loaded() {
+        info!(
+            "v4l2loopback is loaded without {}, reloading cleanly...",
+            dev_path
+        );
+        let _ = run_elevated("rmmod", &["v4l2loopback"]);
     }
 
     info!(
@@ -128,6 +140,18 @@ pub fn detach_loopback_device(video_nr: u32) -> Result<()> {
         info!("Device {} already detached", dev_path);
         return Ok(());
     }
+
+    // Clean up any remaining PhoneCam stream engines or desktop viewers
+    let _ = Command::new("pkill")
+        .args(["-f", "scrcpy.*--video-source=camera"])
+        .output();
+    let _ = Command::new("pkill")
+        .args(["-f", &format!("mpv.*{}", dev_path)])
+        .output();
+    let _ = Command::new("pkill")
+        .args(["-f", &format!("ffplay.*{}", dev_path)])
+        .output();
+    let _ = Command::new("fuser").args(["-k", &dev_path]).output();
 
     // Check if any process is actively holding the device open
     let lsof = Command::new("fuser").arg(&dev_path).output();

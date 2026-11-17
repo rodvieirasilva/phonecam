@@ -13,6 +13,16 @@ use crate::adb::{DeviceStatus, detect_device};
 use crate::config::AppConfig;
 use crate::pipeline::StreamManager;
 
+struct RawModeGuard;
+
+impl Drop for RawModeGuard {
+    fn drop(&mut self) {
+        let _ = terminal::disable_raw_mode();
+        let mut out = stdout();
+        let _ = execute!(out, cursor::Show, ResetColor);
+    }
+}
+
 pub fn run_tui(config: AppConfig) -> Result<()> {
     println!("\nScanning for connected smartphone via ADB...");
 
@@ -89,6 +99,7 @@ pub fn run_tui(config: AppConfig) -> Result<()> {
 
     // 4. Raw terminal listener for ANY key press
     terminal::enable_raw_mode().context("Failed to enable raw terminal mode")?;
+    let _terminal_guard = RawModeGuard;
 
     let any_key_pressed = loop {
         if event::poll(Duration::from_millis(500))?

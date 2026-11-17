@@ -206,6 +206,9 @@ cargo test --test ui_test
 # Run Video Stream Hardware OCR transformation verification
 ./tests/test-ocr-e2e.sh
 
+# Run Memory usage, CPU benchmarks, and clean teardown verification
+./tests/test-perf-e2e.sh
+
 # Run complete UI test suite
 ./tests/test-ui.sh
 

@@ -20,6 +20,9 @@ echo "==> Running Terminal TUI E2E Test Suite..."
 echo "==> Running Video Stream Hardware OCR E2E Verification..."
 ./tests/test-ocr-e2e.sh
 
+echo "==> Running Performance, Memory, CPU & Teardown E2E..."
+./tests/test-perf-e2e.sh
+
 echo "==> Running CLI E2E Tests..."
 ./tests/test-e2e.sh
 
