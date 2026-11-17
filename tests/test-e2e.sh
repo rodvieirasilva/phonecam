@@ -79,6 +79,15 @@ fi
 
 if [[ -f "assets/screenshot-tui.png" && -s "assets/screenshot-tui.png" ]]; then
     pass "assets/screenshot-tui.png exists and is non-empty"
+    # Verify screenshot is clean of bash/printf syntax errors
+    if command -v tesseract >/dev/null 2>&1; then
+        OCR_TEXT=$(tesseract assets/screenshot-tui.png stdout 2>/dev/null || true)
+        if echo "$OCR_TEXT" | grep -qiE "bash:|printf:|invalid format"; then
+            fail "assets/screenshot-tui.png contains shell syntax error artifacts"
+        else
+            pass "assets/screenshot-tui.png verified clean of shell errors via OCR"
+        fi
+    fi
 else
     fail "assets/screenshot-tui.png missing"
 fi

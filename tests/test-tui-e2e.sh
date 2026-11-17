@@ -37,6 +37,8 @@ export PHONECAM_BIN
 TMP_DIR=$(mktemp -d /tmp/phonecam_tui_test_XXXXXX)
 MOCK_BIN_DIR="$TMP_DIR/bin"
 mkdir -p "$MOCK_BIN_DIR"
+export XDG_RUNTIME_DIR="$TMP_DIR/runtime"
+mkdir -p "$XDG_RUNTIME_DIR"
 
 cleanup() {
     killall -q phonecam 2>/dev/null || true
@@ -121,7 +123,14 @@ if "PHONECAM VIRTUAL WEBCAM" not in out_text:
     print("Output received:\n", out_text, file=sys.stderr)
     sys.exit(1)
 
-print("  [PASS] TUI dashboard rendered cleanly and auto-detached on keypress!")
+# Verify no bash or printf syntax errors in terminal output
+for forbidden in ["bash: line", "printf:", "invalid format"]:
+    if forbidden in out_text:
+        print(f"[FAIL] Found unexpected shell error in TUI output: {forbidden}", file=sys.stderr)
+        print("Output received:\n", out_text, file=sys.stderr)
+        sys.exit(1)
+
+print("  [PASS] TUI dashboard rendered cleanly without shell syntax errors and auto-detached on keypress!")
 '
 
 echo "=========================================================="

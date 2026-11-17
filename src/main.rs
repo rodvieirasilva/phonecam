@@ -159,9 +159,11 @@ async fn main() -> Result<()> {
         println!("Streaming started. Press Ctrl+C to stop.");
         let mut term_sig =
             tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
+        let mut hup_sig = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup())?;
         tokio::select! {
             _ = tokio::signal::ctrl_c() => {},
             _ = term_sig.recv() => {},
+            _ = hup_sig.recv() => {},
         }
         mgr.stop()?;
         return Ok(());
@@ -188,15 +190,24 @@ async fn run_gui(config: AppConfig) -> Result<()> {
         axum::serve(listener, router).await.unwrap();
     });
 
-    // Handle termination signals (SIGINT, SIGTERM) to guarantee hardware teardown
+    // Handle termination signals (SIGINT, SIGTERM, SIGHUP) to guarantee hardware teardown
     let app_state_term = app_state.clone();
     tokio::spawn(async move {
         let mut term_sig =
             tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate()).ok();
+        let mut hup_sig =
+            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup()).ok();
         tokio::select! {
             _ = tokio::signal::ctrl_c() => {},
             _ = async {
                 if let Some(ref mut sig) = term_sig {
+                    sig.recv().await;
+                } else {
+                    std::future::pending::<()>().await;
+                }
+            } => {},
+            _ = async {
+                if let Some(ref mut sig) = hup_sig {
                     sig.recv().await;
                 } else {
                     std::future::pending::<()>().await;

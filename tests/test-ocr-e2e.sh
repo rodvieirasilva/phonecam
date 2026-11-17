@@ -62,6 +62,8 @@ fi
 TMP_DIR=$(mktemp -d /tmp/phonecam_ocr_test_XXXXXX)
 MOCK_BIN_DIR="$TMP_DIR/bin"
 mkdir -p "$MOCK_BIN_DIR"
+export XDG_RUNTIME_DIR="$TMP_DIR/runtime"
+mkdir -p "$XDG_RUNTIME_DIR"
 
 cleanup() {
     # Kill any dangling phonecam or ffmpeg processes
