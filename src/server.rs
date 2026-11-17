@@ -44,6 +44,11 @@ pub struct WifiConnectPayload {
     pub address: String,
 }
 
+#[derive(Deserialize, Default)]
+pub struct WifiDisconnectPayload {
+    pub address: Option<String>,
+}
+
 #[derive(Deserialize)]
 pub struct RotationPayload {
     pub rotation: u32,
@@ -61,6 +66,7 @@ pub fn create_router(state: Arc<AppState>) -> Router {
         .route("/api/set-facing", post(set_facing))
         .route("/api/select-camera", post(select_camera))
         .route("/api/connect-wifi", post(connect_wifi_endpoint))
+        .route("/api/disconnect-wifi", post(disconnect_wifi_endpoint))
         .route("/api/enable-tcpip", post(enable_tcpip_endpoint))
         .route("/api/logs", get(get_logs))
         .layer(CorsLayer::permissive())
@@ -109,14 +115,14 @@ async fn start_stream(
     Json(config): Json<AppConfig>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     // If no device is currently connected, attempt auto-connecting via saved Wi-Fi IP
-    if let Ok(dev) = crate::adb::detect_device() {
-        if dev.status == crate::adb::DeviceStatus::NotFound {
-            let ucfg = crate::config::UserStateConfig::load();
-            let ip = ucfg.last_ip.trim();
-            if !ip.is_empty() {
-                let _ = crate::adb::connect_wifi(ip);
-                tokio::time::sleep(tokio::time::Duration::from_millis(600)).await;
-            }
+    if let Ok(dev) = crate::adb::detect_device()
+        && dev.status == crate::adb::DeviceStatus::NotFound
+    {
+        let ucfg = crate::config::UserStateConfig::load();
+        let ip = ucfg.last_ip.trim();
+        if !ip.is_empty() {
+            let _ = crate::adb::connect_wifi(ip);
+            tokio::time::sleep(tokio::time::Duration::from_millis(600)).await;
         }
     }
 
@@ -251,6 +257,22 @@ async fn connect_wifi_endpoint(
     Json(payload): Json<WifiConnectPayload>,
 ) -> (StatusCode, Json<serde_json::Value>) {
     match crate::adb::connect_wifi(&payload.address) {
+        Ok(msg) => (
+            StatusCode::OK,
+            Json(serde_json::json!({ "success": true, "message": msg })),
+        ),
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "success": false, "error": e.to_string() })),
+        ),
+    }
+}
+
+async fn disconnect_wifi_endpoint(
+    payload: Option<Json<WifiDisconnectPayload>>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    let addr = payload.and_then(|p| p.address.clone());
+    match crate::adb::disconnect_wifi(addr.as_deref()) {
         Ok(msg) => (
             StatusCode::OK,
             Json(serde_json::json!({ "success": true, "message": msg })),

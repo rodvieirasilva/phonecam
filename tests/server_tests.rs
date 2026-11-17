@@ -190,3 +190,18 @@ async fn test_enable_tcpip_endpoint() {
     let response = app.oneshot(request).await.unwrap();
     assert!(response.status() == StatusCode::BAD_REQUEST || response.status() == StatusCode::OK);
 }
+
+#[tokio::test]
+async fn test_disconnect_wifi_endpoint() {
+    let (app, _) = setup_test_app();
+
+    let request = Request::builder()
+        .uri("/api/disconnect-wifi")
+        .method("POST")
+        .header("Content-Type", "application/json")
+        .body(Body::from(r#"{"address": "127.0.0.1:5555"}"#))
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+    assert!(response.status() == StatusCode::BAD_REQUEST || response.status() == StatusCode::OK);
+}

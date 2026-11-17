@@ -42,6 +42,8 @@ pub fn build_scrcpy_args(config: &AppConfig, sink_or_record: &str, is_pipe: bool
     if config.torch {
         args.push("--camera-torch".to_string());
     }
+    args.push("--no-window".to_string());
+    args.push("--no-control".to_string());
     args.push("--no-playback".to_string());
 
     if is_pipe {

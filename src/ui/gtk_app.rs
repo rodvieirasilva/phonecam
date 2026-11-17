@@ -335,7 +335,7 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
 
     let wifi_status_row = adw::ActionRow::builder()
         .name("text-wifi-status")
-        .title("Wireless Status")
+        .title("WI-FI DISCONNECTED")
         .subtitle("Connect phone via USB once and click 'Enable USB TCP/IP', then unplug cable and click 'Connect Wi-Fi'.")
         .build();
     device_group.add(&wifi_status_row);
@@ -651,27 +651,45 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
                     btn_tcp.set_sensitive(false);
                     entry.set_sensitive(false);
                 } else if is_wifi {
-                    btn_conn.set_sensitive(false);
+                    btn_conn.set_label("Disconnect Wi-Fi");
+                    btn_conn.remove_css_class("suggested-action");
+                    btn_conn.add_css_class("destructive-action");
+                    btn_conn.set_sensitive(true);
                     btn_tcp.set_sensitive(false);
-                    entry.set_sensitive(false);
+                    entry.set_sensitive(true);
+                    status_row.set_title("● WI-FI CONNECTED");
                     status_row.set_subtitle(&format!("Connected wirelessly via ADB ({serial})"));
                 } else if is_usb {
+                    btn_conn.set_label("Connect Wi-Fi");
+                    btn_conn.remove_css_class("destructive-action");
+                    btn_conn.add_css_class("suggested-action");
                     btn_tcp.set_sensitive(true);
                     btn_conn.set_sensitive(true);
                     entry.set_sensitive(true);
-                    status_row.set_subtitle(&format!("USB connected ({serial}). Click 'Enable USB TCP/IP' to prepare wireless mode."));
+                    status_row.set_title("USB LINK ACTIVE");
+                    status_row.set_subtitle(&format!(
+                        "USB connected ({serial}). Click 'Enable USB TCP/IP' to prepare wireless mode."
+                    ));
                 } else if dev_status == "Unauthorized" {
+                    btn_conn.set_label("Connect Wi-Fi");
+                    btn_conn.remove_css_class("destructive-action");
+                    btn_conn.add_css_class("suggested-action");
                     btn_tcp.set_sensitive(false);
                     btn_conn.set_sensitive(false);
                     entry.set_sensitive(false);
+                    status_row.set_title("DEVICE UNAUTHORIZED");
                     status_row.set_subtitle("Unlock phone & tap 'Allow' for USB debugging.");
                 } else {
                     // NotFound or Offline
+                    btn_conn.set_label("Connect Wi-Fi");
+                    btn_conn.remove_css_class("destructive-action");
+                    btn_conn.add_css_class("suggested-action");
                     btn_tcp.set_sensitive(false);
                     btn_conn.set_sensitive(true);
                     entry.set_sensitive(true);
+                    status_row.set_title("WI-FI DISCONNECTED");
                     status_row.set_subtitle(
-                        "Enter phone IP:5555 and click 'Connect Wi-Fi', or plug USB cable.",
+                        "Enter phone IP:5555 and click 'Connect Wi-Fi', or click 'Start Webcam' to auto-connect.",
                     );
                 }
             }
@@ -855,12 +873,12 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
 
     btn_preview.connect_clicked(move |_| {
         // Toggle off if already running
-        if let Some(mut child) = preview_child_clone.borrow_mut().take() {
-            if child.try_wait().ok() == Some(None) {
-                let _ = child.kill();
-                let _ = child.wait();
-                return;
-            }
+        if let Some(mut child) = preview_child_clone.borrow_mut().take()
+            && child.try_wait().ok() == Some(None)
+        {
+            let _ = child.kill();
+            let _ = child.wait();
+            return;
         }
 
         let spawn_viewer = || -> Option<std::process::Child> {
@@ -1045,6 +1063,20 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
             wifi_status_weak.upgrade(),
             btn_wifi_conn_weak_click.upgrade(),
         ) {
+            let is_disconnect = btn.label().as_deref() == Some("Disconnect Wi-Fi");
+            if is_disconnect {
+                btn.set_sensitive(false);
+                status_row.set_subtitle("Disconnecting wireless ADB...");
+                let _ = http_post(port, "/api/disconnect-wifi", None);
+                status_row.set_title("WI-FI DISCONNECTED");
+                status_row.set_subtitle("Wireless link disconnected.");
+                btn.set_label("Connect Wi-Fi");
+                btn.remove_css_class("destructive-action");
+                btn.add_css_class("suggested-action");
+                btn.set_sensitive(true);
+                return;
+            }
+
             let addr = entry.text().trim().to_string();
             if addr.is_empty() {
                 status_row.set_subtitle("Please enter phone IP (e.g. 192.168.1.50:5555)");
@@ -1066,11 +1098,19 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
             ) {
                 Ok(val) => {
                     let msg = val["message"].as_str().unwrap_or("Connected");
+                    status_row.set_title("● WI-FI CONNECTED");
                     status_row.set_subtitle(msg);
-                    btn.set_sensitive(false);
+                    btn.set_label("Disconnect Wi-Fi");
+                    btn.remove_css_class("suggested-action");
+                    btn.add_css_class("destructive-action");
+                    btn.set_sensitive(true);
                 }
                 Err(e) => {
+                    status_row.set_title("WI-FI DISCONNECTED");
                     status_row.set_subtitle(&format!("Connection failed: {e}"));
+                    btn.set_label("Connect Wi-Fi");
+                    btn.remove_css_class("destructive-action");
+                    btn.add_css_class("suggested-action");
                     btn.set_sensitive(true);
                 }
             }
@@ -1126,7 +1166,11 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
 
                 if status == "Connected" {
                     row.set_title(&format!("{} {}", brand.to_uppercase(), model));
-                    row.set_subtitle(&format!("ADB Serial: {serial} (Connected)"));
+                    if serial.contains(':') || serial.contains('.') {
+                        row.set_subtitle(&format!("● Connected via Wi-Fi ({serial})"));
+                    } else {
+                        row.set_subtitle(&format!("● Connected via USB ({serial})"));
+                    }
                 } else if status == "Unauthorized" {
                     row.set_title("Unauthorized Device");
                     row.set_subtitle("Tap 'Allow' on your phone to authorize USB debugging");
@@ -1204,7 +1248,11 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
 
                 if status == "Connected" {
                     row.set_title(&format!("{} {}", brand.to_uppercase(), model));
-                    row.set_subtitle(&format!("ADB Serial: {serial} (Connected)"));
+                    if serial.contains(':') || serial.contains('.') {
+                        row.set_subtitle(&format!("● Connected via Wi-Fi ({serial})"));
+                    } else {
+                        row.set_subtitle(&format!("● Connected via USB ({serial})"));
+                    }
                     if !serial.is_empty()
                         && ucfg_timer.borrow().last_device_serial.as_deref() != Some(serial)
                     {

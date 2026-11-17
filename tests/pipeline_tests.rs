@@ -12,6 +12,8 @@ fn test_build_scrcpy_args_default() {
     assert!(args.contains(&"--camera-fps=30".to_string()));
     assert!(args.contains(&"--capture-orientation=0".to_string()));
     assert!(args.contains(&"--no-audio".to_string()));
+    assert!(args.contains(&"--no-window".to_string()));
+    assert!(args.contains(&"--no-control".to_string()));
     assert!(args.contains(&"--no-playback".to_string()));
     assert!(args.contains(&"--v4l2-sink=/dev/video10".to_string()));
     assert!(!args.iter().any(|a| a.starts_with("--camera-id=")));
@@ -42,6 +44,8 @@ fn test_build_scrcpy_args_custom() {
     assert!(args.contains(&"--crop=1280:720:0:0".to_string()));
     assert!(args.contains(&"--capture-orientation=flip0".to_string()));
     assert!(args.contains(&"--camera-torch".to_string()));
+    assert!(args.contains(&"--no-window".to_string()));
+    assert!(args.contains(&"--no-control".to_string()));
     assert!(args.contains(&"--no-playback".to_string())); // Scrcpy always runs headless
     assert!(args.contains(&"--v4l2-sink=/dev/video10".to_string()));
 }

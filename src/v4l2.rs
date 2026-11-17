@@ -97,7 +97,11 @@ pub fn set_as_default_camera() {
                 in_sources = true;
                 continue;
             }
-            if in_sources && (line.contains("Filters:") || line.contains("Streams:") || line.contains("Settings")) {
+            if in_sources
+                && (line.contains("Filters:")
+                    || line.contains("Streams:")
+                    || line.contains("Settings"))
+            {
                 break;
             }
             if in_sources && line.contains("PhoneCam") {

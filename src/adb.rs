@@ -321,3 +321,24 @@ pub fn enable_tcpip(port: u16) -> Result<String> {
     }
     Ok(stdout)
 }
+
+/// Disconnect from Android device over Wi-Fi
+pub fn disconnect_wifi(ip_port: Option<&str>) -> Result<String> {
+    let mut cmd = Command::new("adb");
+    cmd.arg("disconnect");
+    if let Some(target) = ip_port {
+        let t = target.trim();
+        if !t.is_empty() {
+            cmd.arg(t);
+        }
+    }
+    let output = cmd.output().context("Failed to run 'adb disconnect'")?;
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let combined = if stderr.is_empty() {
+        stdout
+    } else {
+        format!("{}\n{}", stdout, stderr)
+    };
+    Ok(combined)
+}

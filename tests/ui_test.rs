@@ -195,7 +195,7 @@ async fn test_gtk_ui_widget_tree_and_interactions() {
     // 2. Initial state verification
     assert_eq!(dev_row.title(), "Detecting Smartphone...");
     assert_eq!(bat_label.label(), "");
-    assert_eq!(wifi_status.title(), "Wireless Status");
+    assert_eq!(wifi_status.title(), "WI-FI DISCONNECTED");
     assert_eq!(combo_lens.title(), "Specific Lens Sensor");
     assert_eq!(combo_rot.title(), "Rotation Angle");
     assert_eq!(logs_row.title(), "Recent Activity");
