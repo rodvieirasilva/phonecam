@@ -116,9 +116,9 @@ EOF
 chmod +x "$RUN_SCRIPT"
 
 if command -v foot >/dev/null 2>&1; then
-    foot --app-id=phonecam-tui-capture --window-size-chars=70x19 "$RUN_SCRIPT" &
+    foot --app-id=phonecam-tui-capture --window-size-chars=76x22 "$RUN_SCRIPT" &
     TUI_PID=$!
-    sleep 1.8
+    sleep 2.5
 
     TUI_GEO=$(python3 -c '
 import subprocess, json, sys

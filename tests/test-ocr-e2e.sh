@@ -192,10 +192,10 @@ verify_phonecam_stream() {
     local pc_pid=$!
 
     # Allow stream to initialize and fill v4l2 buffer
-    sleep 1.2
+    sleep 1.5
 
     local captured=false
-    for _ in {1..10}; do
+    for _ in {1..20}; do
         rm -f "$CAPTURED_FRAME" "$REVERSED_FRAME"
         if ffmpeg -nostdin -loglevel error -y -f v4l2 -i /dev/video10 -frames:v 1 -update 1 "$CAPTURED_FRAME" >/dev/null 2>&1; then
             if [ -f "$CAPTURED_FRAME" ] && [ -s "$CAPTURED_FRAME" ]; then
