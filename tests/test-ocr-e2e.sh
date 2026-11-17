@@ -20,19 +20,32 @@ echo "  PhoneCam Hardware OCR Video Stream Verification"
 echo "=========================================================="
 
 # Check prerequisites
-for cmd in magick ffmpeg tesseract; do
+if command -v magick >/dev/null 2>&1; then
+    MAGICK="magick"
+elif command -v convert >/dev/null 2>&1; then
+    MAGICK="convert"
+else
+    echo "[SKIP] ImageMagick ('magick' or 'convert') is required for OCR test suite."
+    exit 0
+fi
+
+for cmd in ffmpeg tesseract; do
     if ! command -v "$cmd" >/dev/null 2>&1; then
         echo "[SKIP] '$cmd' is required for OCR test suite."
         exit 0
     fi
 done
 
-# Ensure release binary is compiled
-if [ ! -f "target/release/phonecam" ]; then
-    echo "==> Compiling PhoneCam release binary..."
-    cargo build --release
+# Determine binary path
+if [ -f "target/release/phonecam" ]; then
+    PHONECAM_BIN="$SCRIPT_DIR/target/release/phonecam"
+elif [ -f "target/debug/phonecam" ]; then
+    PHONECAM_BIN="$SCRIPT_DIR/target/debug/phonecam"
+else
+    echo "==> Compiling PhoneCam binary..."
+    cargo build
+    PHONECAM_BIN="$SCRIPT_DIR/target/debug/phonecam"
 fi
-PHONECAM_BIN="$SCRIPT_DIR/target/release/phonecam"
 
 # Ensure /dev/video10 is ready and writable
 if [ ! -c /dev/video10 ]; then
@@ -63,7 +76,7 @@ CAPTURED_FRAME="$TMP_DIR/captured_frame.png"
 REVERSED_FRAME="$TMP_DIR/reversed_frame.png"
 
 # Generate high-contrast base image with test token
-magick -size 640x480 xc:white -fill black -pointsize 72 -gravity center -annotate +0+0 "$EXPECTED_TOKEN" "$BASE_IMG"
+"$MAGICK" -size 640x480 xc:white -fill black -pointsize 72 -gravity center -annotate +0+0 "$EXPECTED_TOKEN" "$BASE_IMG"
 
 # Create mock adb in MOCK_BIN_DIR
 cat << 'EOF' > "$MOCK_BIN_DIR/adb"
@@ -122,25 +135,25 @@ case "\$ORIENTATION" in
         cp "\$SRC_IMG" "\$STAGE_IMG"
         ;;
     flip0)
-        magick "\$SRC_IMG" -flop "\$STAGE_IMG"
+        "$MAGICK" "\$SRC_IMG" -flop "\$STAGE_IMG"
         ;;
     90)
-        magick "\$SRC_IMG" -rotate 90 "\$STAGE_IMG"
+        "$MAGICK" "\$SRC_IMG" -rotate 90 "\$STAGE_IMG"
         ;;
     180)
-        magick "\$SRC_IMG" -rotate 180 "\$STAGE_IMG"
+        "$MAGICK" "\$SRC_IMG" -rotate 180 "\$STAGE_IMG"
         ;;
     270)
-        magick "\$SRC_IMG" -rotate 270 "\$STAGE_IMG"
+        "$MAGICK" "\$SRC_IMG" -rotate 270 "\$STAGE_IMG"
         ;;
     flip90)
-        magick "\$SRC_IMG" -flop -rotate 90 "\$STAGE_IMG"
+        "$MAGICK" "\$SRC_IMG" -flop -rotate 90 "\$STAGE_IMG"
         ;;
     flip180)
-        magick "\$SRC_IMG" -flop -rotate 180 "\$STAGE_IMG"
+        "$MAGICK" "\$SRC_IMG" -flop -rotate 180 "\$STAGE_IMG"
         ;;
     flip270)
-        magick "\$SRC_IMG" -flop -rotate 270 "\$STAGE_IMG"
+        "$MAGICK" "\$SRC_IMG" -flop -rotate 270 "\$STAGE_IMG"
         ;;
     *)
         cp "\$SRC_IMG" "\$STAGE_IMG"
@@ -191,7 +204,7 @@ verify_phonecam_stream() {
 
     # Apply inverse transform if needed
     if [ -n "$post_process_filter" ]; then
-        magick "$CAPTURED_FRAME" $post_process_filter "$REVERSED_FRAME"
+        "$MAGICK" "$CAPTURED_FRAME" $post_process_filter "$REVERSED_FRAME"
     else
         cp "$CAPTURED_FRAME" "$REVERSED_FRAME"
     fi

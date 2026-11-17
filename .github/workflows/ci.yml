@@ -22,7 +22,9 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qttest qt6-declarative-dev qt6-declarative-dev-tools libv4l-dev ffmpeg desktop-file-utils imagemagick tesseract-ocr tesseract-ocr-eng
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qttest qt6-declarative-dev qt6-declarative-dev-tools libv4l-dev ffmpeg desktop-file-utils imagemagick tesseract-ocr tesseract-ocr-eng v4l2loopback-dkms
+          sudo modprobe v4l2loopback video_nr=10 card_label="PhoneCam Virtual Camera" exclusive_caps=1 || true
+          sudo chmod 666 /dev/video10 2>/dev/null || true
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -40,6 +42,9 @@ jobs:
 
       - name: Rust Linter (Clippy)
         run: cargo clippy --all-targets -- -D warnings
+
+      - name: Build Release Binary
+        run: cargo build --release
 
       - name: Run Full Unit & Integration Test Suite
         run: cargo test --all-targets
@@ -61,6 +66,3 @@ jobs:
 
       - name: Test Coverage (cargo-llvm-cov)
         run: cargo llvm-cov --all-targets --summary-only
-
-      - name: Build Release Binary
-        run: cargo build --release
