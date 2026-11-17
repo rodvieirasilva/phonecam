@@ -175,3 +175,18 @@ async fn test_connect_wifi_endpoint_invalid_ip() {
     // Since 9999 is unlikely to be listening ADB, it either returns 400 or handled gracefully
     assert!(response.status() == StatusCode::BAD_REQUEST || response.status() == StatusCode::OK);
 }
+
+#[tokio::test]
+async fn test_enable_tcpip_endpoint() {
+    let (app, _) = setup_test_app();
+
+    let request = Request::builder()
+        .uri("/api/enable-tcpip")
+        .method("POST")
+        .header("Content-Type", "application/json")
+        .body(Body::empty())
+        .unwrap();
+
+    let response = app.oneshot(request).await.unwrap();
+    assert!(response.status() == StatusCode::BAD_REQUEST || response.status() == StatusCode::OK);
+}

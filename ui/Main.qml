@@ -37,6 +37,12 @@ ApplicationWindow {
     // Synchronization guard to prevent event loops between buttons and combobox
     property bool isUpdatingCameraSelection: false
 
+    // Wi-Fi ADB state
+    property string wifiAddressText: ""
+    property string wifiStatusMsg: ""
+    property bool wifiStatusIsError: false
+    property bool isWifiConnecting: false
+
     // Configuration model
     property string currentFacing: "back"
     property var currentCameraId: null
@@ -72,26 +78,73 @@ ApplicationWindow {
         xhr.setRequestHeader("Content-Type", "application/json");
         xhr.onreadystatechange = function() {
             if (xhr.readyState === XMLHttpRequest.DONE) {
-                if (xhr.status === 200) {
-                    try {
-                        var res = JSON.parse(xhr.responseText);
-                        if (callback) callback(res);
-                    } catch (e) {
-                        console.log("Parse error: " + e);
-                    }
+                var res = null;
+                try {
+                    res = JSON.parse(xhr.responseText);
+                } catch (e) {
+                    res = { success: xhr.status === 200, error: xhr.responseText || ("HTTP " + xhr.status) };
                 }
+                if (callback) callback(res, xhr.status);
             }
         };
         xhr.send(payload ? JSON.stringify(payload) : null);
     }
 
+    function connectWifi(address) {
+        var addr = (address !== undefined && address !== null && address !== "" ? address : wifiAddressText).trim();
+        if (addr.length === 0) {
+            wifiStatusMsg = "Please enter phone IP (e.g. 192.168.1.50:5555)";
+            wifiStatusIsError = true;
+            return;
+        }
+        isWifiConnecting = true;
+        wifiStatusMsg = "Connecting to " + addr + "...";
+        wifiStatusIsError = false;
+
+        apiCall("/api/connect-wifi", "POST", { address: addr }, function(res, status) {
+            isWifiConnecting = false;
+            if (res && res.success) {
+                wifiStatusMsg = "Connected: " + (res.message || addr);
+                wifiStatusIsError = false;
+                fetchStatus();
+                fetchLogs();
+            } else {
+                wifiStatusMsg = (res && res.error) ? res.error : ("Failed to connect to " + addr);
+                wifiStatusIsError = true;
+            }
+        });
+    }
+
+    function enableTcpip() {
+        isWifiConnecting = true;
+        wifiStatusMsg = "Enabling TCP/IP mode on port 5555...";
+        wifiStatusIsError = false;
+
+        apiCall("/api/enable-tcpip", "POST", null, function(res, status) {
+            isWifiConnecting = false;
+            if (res && res.success) {
+                wifiStatusMsg = "Wireless mode enabled! You can now unplug the USB cable.";
+                wifiStatusIsError = false;
+                fetchStatus();
+                fetchLogs();
+            } else {
+                wifiStatusMsg = (res && res.error) ? res.error : "Failed to enable TCP/IP mode. Is phone plugged via USB?";
+                wifiStatusIsError = true;
+            }
+        });
+    }
+
     function fetchStatus() {
-        apiCall("/api/status", "GET", null, function(data) {
+        apiCall("/api/status", "GET", null, function(data, status) {
+            if (!data || status !== 200) return;
+
             // Apply accent only if user hasn't explicitly customized it
             if (!userCustomizedAccent && data.accent_color) {
                 accentColor = data.accent_color;
             }
-            isStreaming = data.is_streaming;
+            if (data.is_streaming !== undefined) {
+                isStreaming = !!data.is_streaming;
+            }
 
             if (data.device) {
                 if (data.device.status === "Connected") {
@@ -139,8 +192,10 @@ ApplicationWindow {
     }
 
     function fetchLogs() {
-        apiCall("/api/logs", "GET", null, function(data) {
-            recentLogs = data;
+        apiCall("/api/logs", "GET", null, function(data, status) {
+            if (Array.isArray(data)) {
+                recentLogs = data;
+            }
         });
     }
 
@@ -452,7 +507,120 @@ ApplicationWindow {
                 }
             }
 
-            // 3. Camera Selection Card (Bidirectionally Synchronized)
+            // 3. Wireless ADB over Wi-Fi Card
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: wifiCol.implicitHeight + 28
+                radius: 12
+                color: "#27272a"
+                border.color: "#3f3f46"
+                border.width: 1
+
+                ColumnLayout {
+                    id: wifiCol
+                    anchors.fill: parent
+                    anchors.margins: 14
+                    spacing: 10
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text {
+                            text: "WIRELESS ADB OVER WI-FI"
+                            font.pixelSize: 11
+                            font.bold: true
+                            color: accentColor
+                        }
+                        Item { Layout.fillWidth: true }
+                        Text {
+                            text: "Untethered studio camera streaming"
+                            font.pixelSize: 11
+                            color: "#71717a"
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        TextField {
+                            id: wifiAddressInput
+                            objectName: "input-wifi-address"
+                            Layout.fillWidth: true
+                            Layout.preferredHeight: 38
+                            placeholderText: "Phone IP:Port (e.g. 192.168.1.50:5555)"
+                            placeholderTextColor: "#71717a"
+                            color: "#f4f4f5"
+                            font.pixelSize: 13
+                            font.family: "Monospace"
+                            selectByMouse: true
+                            onTextChanged: wifiAddressText = text
+                            onAccepted: connectWifi(text)
+                            background: Rectangle {
+                                color: "#18181b"
+                                radius: 8
+                                border.color: wifiAddressInput.activeFocus ? accentColor : "#3f3f46"
+                                border.width: 1
+                            }
+                        }
+
+                        Button {
+                            id: btnWifiConnect
+                            objectName: "btn-wifi-connect"
+                            Layout.preferredHeight: 38
+                            Layout.preferredWidth: 140
+                            text: isWifiConnecting ? "⏳ Connecting..." : "📡 Connect Wi-Fi"
+                            enabled: !isWifiConnecting
+                            onClicked: connectWifi(wifiAddressInput.text)
+                            contentItem: Text {
+                                text: parent.text
+                                font.pixelSize: 12
+                                font.bold: true
+                                color: "#18181b"
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                            background: Rectangle {
+                                color: accentColor
+                                radius: 8
+                            }
+                        }
+
+                        Button {
+                            id: btnWifiTcpip
+                            objectName: "btn-wifi-tcpip"
+                            Layout.preferredHeight: 38
+                            Layout.preferredWidth: 175
+                            text: "🔌 Enable USB TCP/IP"
+                            enabled: !isWifiConnecting
+                            onClicked: enableTcpip()
+                            contentItem: Text {
+                                text: parent.text
+                                font.pixelSize: 12
+                                font.bold: true
+                                color: "#e4e4e7"
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                            background: Rectangle {
+                                color: "#3f3f46"
+                                radius: 8
+                            }
+                        }
+                    }
+
+                    Text {
+                        id: textWifiStatus
+                        objectName: "text-wifi-status"
+                        Layout.fillWidth: true
+                        text: wifiStatusMsg.length > 0 ? wifiStatusMsg : "💡 Initial setup: Connect phone via USB once and click 'Enable USB TCP/IP', then unplug cable and click 'Connect Wi-Fi'."
+                        color: wifiStatusMsg.length > 0 ? (wifiStatusIsError ? "#ef4444" : "#10b981") : "#71717a"
+                        font.pixelSize: 11
+                        wrapMode: Text.Wrap
+                    }
+                }
+            }
+
+            // 4. Camera Selection Card (Bidirectionally Synchronized)
             Rectangle {
                 Layout.fillWidth: true
                 implicitHeight: cameraCol.implicitHeight + 28
@@ -565,7 +733,7 @@ ApplicationWindow {
                 }
             }
 
-            // 4. Geometry & Cut / Crop Card
+            // 5. Geometry & Cut / Crop Card
             Rectangle {
                 Layout.fillWidth: true
                 implicitHeight: geomCol.implicitHeight + 28
@@ -642,7 +810,7 @@ ApplicationWindow {
                 }
             }
 
-            // 5. Transform & Image Invert / Flip Card
+            // 6. Transform & Image Invert / Flip Card
             Rectangle {
                 Layout.fillWidth: true
                 implicitHeight: fxCol.implicitHeight + 28
@@ -759,7 +927,7 @@ ApplicationWindow {
                 }
             }
 
-            // 6. Virtual Webcam Device & Stream Action Card
+            // 7. Virtual Webcam Device & Stream Action Card
             Rectangle {
                 Layout.fillWidth: true
                 height: 96
@@ -847,7 +1015,7 @@ ApplicationWindow {
                 }
             }
 
-            // 7. Live Console & Diagnostics
+            // 8. Live Console & Diagnostics
             Rectangle {
                 Layout.fillWidth: true
                 height: 130

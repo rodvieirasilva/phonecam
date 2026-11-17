@@ -6,9 +6,8 @@ use phonecam::{
     config::AppConfig,
     pipeline::StreamManager,
     server::{AppState, create_router},
-    tui, util, v4l2,
+    tui, v4l2,
 };
-use std::path::PathBuf;
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 use tracing::info;
@@ -152,7 +151,7 @@ async fn main() -> Result<()> {
 }
 
 async fn run_gui(config: AppConfig) -> Result<()> {
-    info!("Starting PhoneCam GUI on port {}", config.port);
+    info!("Starting PhoneCam native GTK4 GUI on port {}", config.port);
 
     let port = config.port;
     let stream_mgr = Mutex::new(StreamManager::new(config.clone()));
@@ -168,29 +167,16 @@ async fn run_gui(config: AppConfig) -> Result<()> {
         axum::serve(listener, router).await.unwrap();
     });
 
-    // Locate ui/Main.qml
-    let qml_path = find_qml_path()?;
-    info!("Found QML interface at: {}", qml_path.display());
-
-    // Launch qml6
-    let mut qml_child = Command::new("qml6")
-        .arg(&qml_path)
-        .env("PHONECAM_PORT", port.to_string())
-        .spawn()
-        .context("Failed to launch qml6 runtime. Please ensure qt6-declarative is installed.")?;
-
-    let qml_pid = qml_child.id();
-    info!("Qt Quick application running (PID: {})", qml_pid);
-
-    // Wait for the GUI window to close or Ctrl+C
-    tokio::select! {
-        _ = tokio::signal::ctrl_c() => {
-            info!("Ctrl+C detected, closing GUI...");
-            let _ = Command::new("kill").arg(qml_pid.to_string()).output();
-        }
-        status = tokio::task::spawn_blocking(move || qml_child.wait()) => {
-            info!("GUI window closed: {:?}", status);
-        }
+    #[cfg(feature = "gui")]
+    {
+        info!("Launching native GTK4/Adwaita desktop window...");
+        let _ = phonecam::ui::run_desktop_ui(port);
+    }
+    #[cfg(not(feature = "gui"))]
+    {
+        eprintln!(
+            "Notice: PhoneCam was compiled without native GTK4 GUI support. Run with --tui instead."
+        );
     }
 
     // Clean teardown when GUI closes
@@ -199,48 +185,4 @@ async fn run_gui(config: AppConfig) -> Result<()> {
     info!("PhoneCam shutdown completed.");
 
     Ok(())
-}
-
-const EMBEDDED_MAIN_QML: &str = include_str!("../ui/Main.qml");
-const EMBEDDED_THEME_QML: &str = include_str!("../ui/Theme.qml");
-const EMBEDDED_QMLDIR: &str = include_str!("../ui/qmldir");
-
-fn find_qml_path() -> Result<PathBuf> {
-    // 1. Current directory ui/Main.qml (development mode)
-    let local = PathBuf::from("ui/Main.qml");
-    if local.exists() {
-        return Ok(std::fs::canonicalize(local)?);
-    }
-
-    // 2. System-wide installed paths
-    for sys_path in [
-        "/usr/local/share/phonecam/ui/Main.qml",
-        "/usr/share/phonecam/ui/Main.qml",
-    ] {
-        let p = PathBuf::from(sys_path);
-        if p.exists() {
-            return Ok(p);
-        }
-    }
-
-    // 3. User local share ~/.local/share/phonecam/ui/Main.qml
-    let user_local = util::home_dir().join(".local/share/phonecam/ui/Main.qml");
-    if user_local.exists() {
-        return Ok(user_local);
-    }
-
-    // 4. Single-binary embedded fallback (matches soundthis / lan-mouse pattern)
-    // Extracts embedded UI into ~/.cache/phonecam/ui/
-    let cache_dir = util::home_dir().join(".cache/phonecam/ui");
-    let _ = std::fs::create_dir_all(&cache_dir);
-    let _ = std::fs::write(cache_dir.join("Main.qml"), EMBEDDED_MAIN_QML);
-    let _ = std::fs::write(cache_dir.join("Theme.qml"), EMBEDDED_THEME_QML);
-    let _ = std::fs::write(cache_dir.join("qmldir"), EMBEDDED_QMLDIR);
-
-    let cached_main = cache_dir.join("Main.qml");
-    if cached_main.exists() {
-        return Ok(cached_main);
-    }
-
-    anyhow::bail!("Main.qml interface file not found!");
 }

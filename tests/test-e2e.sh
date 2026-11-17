@@ -71,6 +71,18 @@ else
     fail "assets/phonecam.png missing"
 fi
 
+if [[ -f "assets/screenshot-gui.png" && -s "assets/screenshot-gui.png" ]]; then
+    pass "assets/screenshot-gui.png exists and is non-empty"
+else
+    fail "assets/screenshot-gui.png missing"
+fi
+
+if [[ -f "assets/screenshot-tui.png" && -s "assets/screenshot-tui.png" ]]; then
+    pass "assets/screenshot-tui.png exists and is non-empty"
+else
+    fail "assets/screenshot-tui.png missing"
+fi
+
 # 4. QML syntax validation
 echo "==> Step 4: Testing QML UI Syntax..."
 if command -v qml6 >/dev/null 2>&1; then
@@ -123,6 +135,9 @@ REQUIRED_FILES=(
     "scripts/uninstall.sh"
     "src/lib.rs"
     "src/main.rs"
+    "src/ui/mod.rs"
+    "src/ui/gtk_app.rs"
+    "tests/ui_test.rs"
     "ui/Main.qml"
     "tests/tst_ui.qml"
     "tests/test-ui.sh"

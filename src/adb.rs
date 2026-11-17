@@ -271,20 +271,30 @@ pub fn list_cameras(serial: Option<&str>) -> Result<Vec<CameraInfo>> {
 
 /// Connect to Android device over Wi-Fi via ADB TCP/IP (e.g. "192.168.1.50:5555")
 pub fn connect_wifi(ip_port: &str) -> Result<String> {
+    let target = ip_port.trim();
+    if target.is_empty() {
+        anyhow::bail!("Target IP or IP:PORT is empty");
+    }
     let output = Command::new("adb")
-        .args(["connect", ip_port])
+        .args(["connect", target])
         .output()
         .context("Failed to run 'adb connect'")?;
     let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    if output.status.success() {
-        Ok(stdout)
+    let combined = if stderr.is_empty() {
+        stdout.clone()
     } else {
-        anyhow::bail!(
-            "adb connect failed: {}",
-            if stderr.is_empty() { stdout } else { stderr }
-        );
+        format!("{}\n{}", stdout, stderr)
+    };
+
+    if !output.status.success()
+        || stdout.contains("failed to connect")
+        || stdout.contains("cannot connect")
+        || stdout.contains("Connection refused")
+    {
+        anyhow::bail!("adb connect failed: {}", combined);
     }
+    Ok(stdout)
 }
 
 /// Enable TCP/IP listening mode on currently connected USB device
@@ -295,12 +305,19 @@ pub fn enable_tcpip(port: u16) -> Result<String> {
         .context("Failed to run 'adb tcpip'")?;
     let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    if output.status.success() {
-        Ok(stdout)
+    let combined = if stderr.is_empty() {
+        stdout.clone()
     } else {
-        anyhow::bail!(
-            "adb tcpip failed: {}",
-            if stderr.is_empty() { stdout } else { stderr }
-        );
+        format!("{}\n{}", stdout, stderr)
+    };
+
+    if !output.status.success()
+        || stdout.contains("error:")
+        || stderr.contains("error:")
+        || stdout.contains("no devices")
+        || stderr.contains("no devices")
+    {
+        anyhow::bail!("adb tcpip failed: {}", combined);
     }
+    Ok(stdout)
 }

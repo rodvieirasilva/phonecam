@@ -126,6 +126,9 @@ if [[ ! -f "$SUDOERS_FILE" ]]; then
     echo "  Configured passwordless v4l2loopback management in $SUDOERS_FILE"
 fi
 
+# Remove old samsung-webcam launcher if present
+rm -f "$HOME/.local/share/applications/samsung-webcam.desktop" 2>/dev/null || true
+
 echo "==> Updating Omarchy Menu configuration..."
 MENU_EXT="$HOME/.config/omarchy/extensions/omarchy-menu.jsonc"
 if [[ -f "$MENU_EXT" ]]; then
@@ -138,28 +141,21 @@ with open(path, "r") as f:
 
 # Replace or add phonecam entries
 if "phonecam" not in content:
-    # Append before last closing brace
     idx = content.rfind("}")
     if idx != -1:
         entry = """
-  // PhoneCam - Smartphone Virtual Webcam (Qt Quick & Rust)
+  // PhoneCam - Smartphone Virtual Webcam (Rust & GTK4)
   "phonecam": {
     "icon": "",
-    "label": "PhoneCam Webcam",
-    "aliases": ["webcam", "camera", "phonecam", "samsung-webcam"],
+    "label": "PhoneCam",
+    "aliases": ["webcam", "camera", "phonecam"],
     "action": "phonecam"
-  },
-  "phonecam-tui": {
-    "icon": "",
-    "label": "PhoneCam (Terminal)",
-    "aliases": ["phonecam-tui", "webcam-tui"],
-    "action": "omarchy-launch-tui phonecam --tui"
   },
 """
         new_content = content[:idx] + entry + content[idx:]
         with open(path, "w") as f:
             f.write(new_content)
-        print("  Added PhoneCam entries to omarchy-menu.jsonc")
+        print("  Added PhoneCam entry to omarchy-menu.jsonc")
 else:
     print("  PhoneCam already present in omarchy-menu.jsonc")
 ' || true

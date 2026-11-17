@@ -10,8 +10,8 @@ depends=(
     'scrcpy'
     'android-tools'
     'v4l2loopback-dkms'
-    'qt6-declarative'
-    'qt6-quickcontrols2'
+    'gtk4'
+    'libadwaita'
     'ffmpeg'
 )
 makedepends=('cargo')

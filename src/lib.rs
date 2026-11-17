@@ -4,5 +4,6 @@ pub mod config;
 pub mod pipeline;
 pub mod server;
 pub mod tui;
+pub mod ui;
 pub mod util;
 pub mod v4l2;

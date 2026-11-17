@@ -9,9 +9,9 @@ Welcome! This document provides architectural invariants, engineering standards,
 **PhoneCam** is a high-performance smartphone webcam virtual device manager built specifically for **Omarchy Linux** (Arch Linux / Wayland).
 
 - **Core Goal**: Expose any Android smartphone connected via USB as a zero-latency, studio-quality UVC webcam (`/dev/video10`) for all Linux applications (OBS, Discord, Zoom, Meet, Firefox, Chromium).
-- **Core Technology**: Rust 2024 edition, `scrcpy 5.x`, `v4l2loopback`, and `Qt 6 Quick / QML`.
+- **Core Technology**: Rust 2024 edition, `scrcpy 5.x`, `v4l2loopback`, and `GTK4 / Libadwaita`.
 - **Interface**: Dual-mode UI:
-  1. Modern **Qt Quick (QML)** desktop window with Omarchy dark theme and live accent color.
+  1. Modern native **GTK4 / Libadwaita** desktop window with Omarchy dark theme and live accent color (same pattern as SoundThis and Lan-Mouse).
   2. Interactive **Terminal TUI** dashboard with auto-detachment on **ANY KEY** press.
 - **Transformations**: Live switching between Front/Back cameras, Cut (Crop presets: 16:9, 4:3, 1:1, full), Resize (1080p, 720p, 4K), Invert (color negative filter), and Flip (horizontal mirror & vertical).
 
@@ -59,6 +59,9 @@ phonecam/
 │   ├── pipeline.rs           # scrcpy/ffmpeg stream lifecycle, filters, PIDs
 │   ├── server.rs             # Internal HTTP REST IPC for QML frontend
 │   ├── tui.rs                # Crossterm terminal UI with any-key auto-detach
+│   ├── ui/                   # Native GTK4 / Libadwaita UI module
+│   │   ├── mod.rs            # Desktop UI entry points
+│   │   └── gtk_app.rs        # Adwaita application, widgets, theming & event loop
 │   └── util.rs               # Privilege escalation & Omarchy theme detection
 ├── ui/
 │   ├── Main.qml              # Qt Quick ApplicationWindow layout & controls
@@ -71,10 +74,11 @@ phonecam/
 │   ├── fake_phone_e2e.rs     # Mock phone end-to-end integration tests
 │   ├── pipeline_tests.rs     # Stream argument & lifecycle tests
 │   ├── server_tests.rs       # Axum REST API endpoint tests
+│   ├── ui_test.rs            # GTK4 / Libadwaita UI & widget click simulation tests
 │   ├── util_tests.rs         # Theme & environment utility tests
 │   ├── v4l2_tests.rs         # Device node & module tests
 │   ├── tst_ui.qml            # Qt Quick UI TestSuite with simulated button clicks & testIDs
-│   ├── test-ui.sh            # Offscreen QML UI test runner
+│   ├── test-ui.sh            # UI test runner (GTK4 & QML)
 │   ├── test-e2e.sh           # CLI, desktop & asset E2E script
 │   ├── test-package-e2e.sh   # Full package lifecycle test runner
 │   └── test-android-emulator.sh # Android emulator / live hardware test script
@@ -94,22 +98,26 @@ phonecam/
 - **Terminal Handling**: `crossterm` in raw mode with `event::poll` and `event::read` for non-blocking key detection.
 - **Process Management**: Store `std::process::Child` handles and ensure both stdout/stderr are logged to `/tmp/phonecam.log` or piped to filters.
 
-### 4.2 Qt Quick (QML) Guidelines
-- Built for `qml6` runtime (`Qt 6.12+`).
-- Use `XMLHttpRequest` to communicate with the internal REST API on `127.0.0.1:41789`.
-- Ensure keyboard shortcuts (`Escape`, `q`, `Space`) are active application-wide.
-- Always poll `/api/status` periodically (2000ms) to detect phone plug/unplug events dynamically.
+### 4.2 Native GTK4 / Libadwaita Guidelines
+- Built with `gtk4` and `libadwaita` (`adw`).
+- Communicates with the internal REST API on `127.0.0.1:41789`.
+- Dynamic theme synchronizes with Omarchy colors via inotify monitoring of `~/.local/state/omarchy/current/theme/colors.toml`.
+- Keyboard shortcuts (`Escape`, `q`, `Space`) are active application-wide.
+- Automatic polling periodically (1500ms) detects phone plug/unplug events dynamically.
 - **UI Testability & TestIDs**:
-  - Always assign deterministic `objectName` test IDs to every interactive control:
+  - Assign deterministic `widget_name` test IDs to every interactive control:
     - `"btn-camera-rear"`, `"btn-camera-front"`: Camera facing buttons
     - `"combo-camera-lens"`: Sensor lens dropdown
     - `"combo-resolution"`: Capture resolution dropdown
     - `"combo-crop"`: Crop/framing preset dropdown
     - `"switch-flip-h"`, `"switch-flip-v"`, `"switch-invert"`, `"switch-torch"`, `"switch-preview"`: Feature switches
     - `"btn-preview"`, `"btn-stream-action"`: Primary action buttons
-    - `"btn-theme-swatch-<index>"`: Dynamic accent color swatches
     - `"btn-refresh"`: Status & logs refresh button
-  - All UI tests run headless via `qmltestrunner` in `tests/test-ui.sh`.
+    - `"input-wifi-address"`: IP:port input for ADB over Wi-Fi
+    - `"btn-wifi-connect"`: Connect Wi-Fi ADB button
+    - `"btn-wifi-tcpip"`: Enable USB TCP/IP button
+    - `"text-wifi-status"`: Status message text for wireless ADB
+  - All UI tests run via `cargo test --test ui_test` and `./tests/test-ui.sh`.
 
 ---
 

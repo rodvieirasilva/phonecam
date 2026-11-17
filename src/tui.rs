@@ -130,7 +130,7 @@ fn render_dashboard(dev: &crate::adb::DeviceInfo, cfg: &AppConfig) {
     let _ = execute!(out, Clear(ClearType::All), cursor::MoveTo(0, 0));
 
     println!("╔══════════════════════════════════════════════════════════════════╗");
-    println!("║                    📱 PHONECAM VIRTUAL WEBCAM                    ║");
+    println!("║                    PHONECAM VIRTUAL WEBCAM                       ║");
     println!("╠══════════════════════════════════════════════════════════════════╣");
     println!(
         "║  Device:    {:<20} Brand:   {:<20}║",
@@ -175,7 +175,7 @@ fn render_dashboard(dev: &crate::adb::DeviceInfo, cfg: &AppConfig) {
     println!("║  Status:    ● STREAMING LIVE (UVC Virtual Webcam Ready)         ║");
     println!("║  Compatible apps: Discord, Chromium, Firefox, Zoom, OBS, etc.   ║");
     println!("╠══════════════════════════════════════════════════════════════════╣");
-    println!("║  👉 Press ANY KEY (or 'q' / Ctrl+C) to stop and auto-detach     ║");
+    println!("║  Press ANY KEY (or 'q' / Ctrl+C) to stop and auto-detach         ║");
     println!("╚══════════════════════════════════════════════════════════════════╝");
     let _ = out.flush();
 }

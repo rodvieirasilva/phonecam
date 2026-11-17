@@ -59,6 +59,10 @@ TestCase {
         verify(getControl("btn-refresh") !== null, "Found testId 'btn-refresh'");
         verify(getControl("text-device-name") !== null, "Found testId 'text-device-name'");
         verify(getControl("text-stream-status") !== null, "Found testId 'text-stream-status'");
+        verify(getControl("input-wifi-address") !== null, "Found testId 'input-wifi-address'");
+        verify(getControl("btn-wifi-connect") !== null, "Found testId 'btn-wifi-connect'");
+        verify(getControl("btn-wifi-tcpip") !== null, "Found testId 'btn-wifi-tcpip'");
+        verify(getControl("text-wifi-status") !== null, "Found testId 'text-wifi-status'");
     }
 
     function test_2_simulate_click_camera_buttons() {
@@ -185,5 +189,35 @@ TestCase {
     function test_7_keyboard_shortcuts() {
         compare(win.isStreaming, false);
         keyClick(Qt.Key_Space);
+    }
+
+    function test_8_wifi_adb_controls() {
+        var inputWifi = getControl("input-wifi-address");
+        var btnConnect = getControl("btn-wifi-connect");
+        var btnTcpip = getControl("btn-wifi-tcpip");
+        var textStatus = getControl("text-wifi-status");
+
+        verify(inputWifi !== null, "input-wifi-address control exists");
+        verify(btnConnect !== null, "btn-wifi-connect control exists");
+        verify(btnTcpip !== null, "btn-wifi-tcpip control exists");
+        verify(textStatus !== null, "text-wifi-status control exists");
+
+        // 1. Test empty address validation
+        inputWifi.text = "";
+        mouseClick(btnConnect);
+        compare(win.wifiStatusIsError, true, "Empty Wi-Fi address flagged as error");
+        verify(win.wifiStatusMsg.indexOf("Please enter") !== -1, "Status prompt shown on empty input");
+
+        // 2. Test text input update
+        inputWifi.text = "192.168.1.120:5555";
+        compare(win.wifiAddressText, "192.168.1.120:5555", "wifiAddressText bound to input");
+
+        // 3. Test click connect with address
+        mouseClick(btnConnect);
+        verify(win.wifiStatusMsg.length > 0, "Status updated upon connect trigger");
+
+        // 4. Test click enable USB TCP/IP
+        mouseClick(btnTcpip);
+        verify(win.wifiStatusMsg.length > 0, "Status updated upon enable tcpip trigger");
     }
 }

@@ -215,16 +215,28 @@ async fn get_logs(State(state): State<Arc<AppState>>) -> Json<Vec<String>> {
 
 async fn connect_wifi_endpoint(
     Json(payload): Json<WifiConnectPayload>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> (StatusCode, Json<serde_json::Value>) {
     match crate::adb::connect_wifi(&payload.address) {
-        Ok(msg) => Ok(Json(serde_json::json!({ "success": true, "message": msg }))),
-        Err(e) => Err((StatusCode::BAD_REQUEST, e.to_string())),
+        Ok(msg) => (
+            StatusCode::OK,
+            Json(serde_json::json!({ "success": true, "message": msg })),
+        ),
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "success": false, "error": e.to_string() })),
+        ),
     }
 }
 
-async fn enable_tcpip_endpoint() -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+async fn enable_tcpip_endpoint() -> (StatusCode, Json<serde_json::Value>) {
     match crate::adb::enable_tcpip(5555) {
-        Ok(msg) => Ok(Json(serde_json::json!({ "success": true, "message": msg }))),
-        Err(e) => Err((StatusCode::BAD_REQUEST, e.to_string())),
+        Ok(msg) => (
+            StatusCode::OK,
+            Json(serde_json::json!({ "success": true, "message": msg })),
+        ),
+        Err(e) => (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "success": false, "error": e.to_string() })),
+        ),
     }
 }

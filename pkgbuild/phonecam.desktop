@@ -7,14 +7,5 @@ Exec=phonecam
 Icon=phonecam
 Terminal=false
 Categories=AudioVideo;Video;Recorder;Utility;
-Keywords=webcam;camera;phone;samsung;scrcpy;v4l2;streaming;
+Keywords=webcam;camera;phone;scrcpy;v4l2;streaming;
 StartupWMClass=phonecam
-Actions=TUI;Detach;
-
-[Desktop Action TUI]
-Name=Open in Terminal (TUI)
-Exec=omarchy-launch-tui phonecam --tui
-
-[Desktop Action Detach]
-Name=Detach Virtual Device
-Exec=phonecam --detach

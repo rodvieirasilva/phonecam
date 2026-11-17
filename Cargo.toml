@@ -27,6 +27,12 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 which = "7.0"
 libc = "0.2"
+gtk4 = { version = "0.9", optional = true }
+adw = { version = "0.7", package = "libadwaita", optional = true }
+
+[features]
+default = ["gui"]
+gui = ["dep:gtk4", "dep:adw"]
 
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }
