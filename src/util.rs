@@ -1,0 +1,129 @@
+use std::fs;
+use std::path::PathBuf;
+use std::process::{Command, Stdio};
+use anyhow::{Context, Result};
+
+/// Get the user's home directory.
+pub fn home_dir() -> PathBuf {
+    dirs_home().unwrap_or_else(|| PathBuf::from("/home/rvs"))
+}
+
+fn dirs_home() -> Option<PathBuf> {
+    std::env::var_os("HOME").map(PathBuf::from)
+}
+
+/// Reads the user's LINUX_PASSWORD from ~/.credentials if it exists.
+pub fn get_sudo_password() -> Option<String> {
+    let cred_path = home_dir().join(".credentials");
+    if let Ok(content) = fs::read_to_string(&cred_path) {
+        for line in content.lines() {
+            let line = line.trim();
+            if line.starts_with("LINUX_PASSWORD=") {
+                let pass = line.trim_start_matches("LINUX_PASSWORD=").trim_matches('"').trim_matches('\'');
+                if !pass.is_empty() {
+                    return Some(pass.to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Executes a command with elevated privileges using passwordless sudo,
+/// the password from ~/.credentials, or run0 as fallback.
+pub fn run_elevated(cmd: &str, args: &[&str]) -> Result<String> {
+    // If we are already root
+    if unsafe { libc::geteuid() } == 0 {
+        let output = Command::new(cmd)
+            .args(args)
+            .output()
+            .with_context(|| format!("Failed to run root command: {} {:?}", cmd, args))?;
+        if output.status.success() {
+            return Ok(String::from_utf8_lossy(&output.stdout).to_string());
+        } else {
+            let err = String::from_utf8_lossy(&output.stderr).to_string();
+            anyhow::bail!("Command failed ({}): {}", output.status, err);
+        }
+    }
+
+    // Try passwordless sudo first
+    let test_sudo = Command::new("sudo")
+        .args(["-n", "true"])
+        .output();
+
+    if let Ok(res) = test_sudo {
+        if res.status.success() {
+            let output = Command::new("sudo")
+                .arg(cmd)
+                .args(args)
+                .output()
+                .with_context(|| format!("Failed to run sudo: {} {:?}", cmd, args))?;
+            if output.status.success() {
+                return Ok(String::from_utf8_lossy(&output.stdout).to_string());
+            } else {
+                let err = String::from_utf8_lossy(&output.stderr).to_string();
+                anyhow::bail!("Elevated command failed: {}", err);
+            }
+        }
+    }
+
+    // Try sudo with credentials password
+    if let Some(pass) = get_sudo_password() {
+        use std::io::Write;
+        let mut child = Command::new("sudo")
+            .args(["-S", cmd])
+            .args(args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .with_context(|| format!("Failed to spawn sudo -S {} {:?}", cmd, args))?;
+
+        if let Some(mut stdin) = child.stdin.take() {
+            let _ = stdin.write_all(pass.as_bytes());
+            let _ = stdin.write_all(b"\n");
+        }
+
+        let output = child.wait_with_output()
+            .with_context(|| format!("Failed waiting for sudo -S {} {:?}", cmd, args))?;
+
+        if output.status.success() {
+            return Ok(String::from_utf8_lossy(&output.stdout).to_string());
+        } else {
+            let err = String::from_utf8_lossy(&output.stderr).to_string();
+            anyhow::bail!("Sudo execution failed: {}", err);
+        }
+    }
+
+    // Fallback to run0 if available
+    if which::which("run0").is_ok() {
+        let output = Command::new("run0")
+            .arg(cmd)
+            .args(args)
+            .output()
+            .with_context(|| format!("Failed to run run0 {} {:?}", cmd, args))?;
+        if output.status.success() {
+            return Ok(String::from_utf8_lossy(&output.stdout).to_string());
+        }
+    }
+
+    anyhow::bail!("No privilege escalation mechanism succeeded for: {} {:?}", cmd, args);
+}
+
+/// Helper to read Omarchy theme accent color from disk
+pub fn get_omarchy_accent() -> String {
+    let colors_path = home_dir().join(".local/state/omarchy/current/theme/colors.toml");
+    if let Ok(content) = fs::read_to_string(&colors_path) {
+        for line in content.lines() {
+            let line = line.trim();
+            if line.starts_with("accent =") || line.starts_with("accent=") {
+                let val = line.split('=').nth(1).unwrap_or("").trim().trim_matches('"').trim_matches('\'');
+                if !val.is_empty() {
+                    return val.to_string();
+                }
+            }
+        }
+    }
+    // Fallback Omarchy yellow accent
+    "#FFD60A".to_string()
+}

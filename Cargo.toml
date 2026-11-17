@@ -1,0 +1,29 @@
+[package]
+name = "phonecam"
+version = "0.1.0"
+edition = "2024"
+authors = ["Rodrigo Vieira <rodvieirasilva@gmail.com>"]
+description = "High-performance smartphone webcam virtual device manager for Omarchy Linux"
+license = "MIT"
+
+[dependencies]
+tokio = { version = "1.43", features = ["full"] }
+axum = { version = "0.8.9" }
+tower-http = { version = "0.7", features = ["cors", "trace"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+crossterm = "0.28"
+anyhow = "1.0"
+thiserror = "2.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+which = "7.0"
+libc = "0.2"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

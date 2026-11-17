@@ -1,0 +1,20 @@
+[Desktop Entry]
+Type=Application
+Name=PhoneCam
+GenericName=Virtual Webcam
+Comment=Smartphone Webcam virtual device manager for Omarchy
+Exec=phonecam
+Icon=phonecam
+Terminal=false
+Categories=AudioVideo;Video;Recorder;Utility;
+Keywords=webcam;camera;phone;samsung;scrcpy;v4l2;streaming;
+StartupWMClass=phonecam
+Actions=TUI;Detach;
+
+[Desktop Action TUI]
+Name=Open in Terminal (TUI)
+Exec=omarchy-launch-tui phonecam --tui
+
+[Desktop Action Detach]
+Name=Detach Virtual Device
+Exec=phonecam --detach

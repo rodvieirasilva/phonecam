@@ -1,0 +1,44 @@
+# Maintainer: Rodrigo Vieira <rodvieirasilva@gmail.com>
+pkgname=phonecam
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="High-performance smartphone webcam virtual device manager for Omarchy Linux"
+arch=('x86_64')
+url="https://github.com/omacom/phonecam"
+license=('MIT')
+depends=(
+    'scrcpy'
+    'android-tools'
+    'v4l2loopback-dkms'
+    'qt6-declarative'
+    'qt6-quickcontrols2'
+    'ffmpeg'
+)
+makedepends=('cargo')
+source=()
+sha256sums=()
+
+build() {
+    cd "$startdir/.."
+    cargo build --release --locked
+}
+
+package() {
+    cd "$startdir/.."
+
+    # Binary
+    install -Dm755 "target/release/phonecam" "$pkgdir/usr/bin/phonecam"
+
+    # QML UI assets
+    install -Dm644 "ui/Main.qml" "$pkgdir/usr/share/phonecam/ui/Main.qml"
+
+    # Desktop entry
+    install -Dm644 "pkgbuild/phonecam.desktop" "$pkgdir/usr/share/applications/phonecam.desktop"
+
+    # Icons
+    install -Dm644 "assets/phonecam.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/phonecam.svg"
+    install -Dm644 "assets/phonecam.png" "$pkgdir/usr/share/icons/hicolor/512x512/apps/phonecam.png"
+
+    # License
+    install -Dm644 "LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
