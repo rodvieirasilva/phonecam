@@ -9,6 +9,15 @@ pub fn home_dir() -> PathBuf {
 }
 
 fn dirs_home() -> Option<PathBuf> {
+    if let Ok(sudo_user) = std::env::var("SUDO_USER")
+        && !sudo_user.is_empty()
+        && sudo_user != "root"
+    {
+        let user_home = PathBuf::from(format!("/home/{}", sudo_user));
+        if user_home.exists() {
+            return Some(user_home);
+        }
+    }
     std::env::var_os("HOME").map(PathBuf::from)
 }
 

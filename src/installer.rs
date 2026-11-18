@@ -140,44 +140,74 @@ impl Installer {
             .arg(&apps_dir)
             .status();
 
-        // 6. Grant desktop camera portal permissions to camera preview apps
-        let _ = Command::new("busctl")
-            .args([
-                "--user",
-                "call",
-                "org.freedesktop.impl.portal.PermissionStore",
-                "/org/freedesktop/impl/portal/PermissionStore",
-                "org.freedesktop.impl.portal.PermissionStore",
-                "SetPermission",
-                "sbssas",
-                "devices",
-                "true",
-                "camera",
-                "org.gnome.Snapshot",
-                "1",
-                "yes",
-            ])
-            .status();
-        let _ = Command::new("busctl")
-            .args([
-                "--user",
-                "call",
-                "org.freedesktop.impl.portal.PermissionStore",
-                "/org/freedesktop/impl/portal/PermissionStore",
-                "org.freedesktop.impl.portal.PermissionStore",
-                "SetPermission",
-                "sbssas",
-                "devices",
-                "true",
-                "camera",
-                "snapshot",
-                "1",
-                "yes",
-            ])
-            .status();
+        // 6. Grant desktop camera portal permissions to camera preview apps & browsers
+        for app_id in [
+            "org.gnome.Snapshot",
+            "snapshot",
+            "brave",
+            "brave-browser",
+            "chromium",
+        ] {
+            let mut bus_cmd = Command::new("busctl");
+            if let Ok(sudo_user) = std::env::var("SUDO_USER")
+                && !sudo_user.is_empty()
+                && sudo_user != "root"
+            {
+                bus_cmd.arg(format!("--machine={}@.host", sudo_user));
+            }
+            let _ = bus_cmd
+                .args([
+                    "--user",
+                    "call",
+                    "org.freedesktop.impl.portal.PermissionStore",
+                    "/org/freedesktop/impl/portal/PermissionStore",
+                    "org.freedesktop.impl.portal.PermissionStore",
+                    "SetPermission",
+                    "sbssas",
+                    "devices",
+                    "true",
+                    "camera",
+                    app_id,
+                    "1",
+                    "yes",
+                ])
+                .status();
+        }
 
         // 7. Clean up manual Omarchy menu overrides if present to ensure single clean entry
         Self::clean_omarchy_menu(home);
+
+        // If invoked via `sudo phonecam install`, restore user ownership of files in home
+        if let Ok(sudo_user) = std::env::var("SUDO_USER")
+            && !sudo_user.is_empty()
+            && sudo_user != "root"
+        {
+            let user_group = format!("{}:{}", sudo_user, sudo_user);
+            let _ = Command::new("chown")
+                .args(["-R", &user_group])
+                .arg(home.join(".config/phonecam"))
+                .status();
+            let _ = Command::new("chown")
+                .args(["-R", &user_group])
+                .arg(home.join(".local/share/phonecam"))
+                .status();
+            let _ = Command::new("chown")
+                .arg(&user_group)
+                .arg(home.join(".local/bin/phonecam"))
+                .status();
+            let _ = Command::new("chown")
+                .arg(&user_group)
+                .arg(home.join(".local/share/applications/phonecam.desktop"))
+                .status();
+            let _ = Command::new("chown")
+                .arg(&user_group)
+                .arg(home.join(".local/share/icons/hicolor/scalable/apps/phonecam.svg"))
+                .status();
+            let _ = Command::new("chown")
+                .arg(&user_group)
+                .arg(home.join(".local/share/icons/hicolor/512x512/apps/phonecam.png"))
+                .status();
+        }
 
         // 8. System-level setup when requested and running with privileges
         if manage_system {
@@ -193,7 +223,9 @@ impl Installer {
             let _ = fs::write(&tmp_svg, ICON_SVG);
             let _ = fs::write(&tmp_png, ICON_PNG);
 
-            let current_user = std::env::var("USER").unwrap_or_else(|_| "rvs".into());
+            let current_user = std::env::var("SUDO_USER")
+                .or_else(|_| std::env::var("USER"))
+                .unwrap_or_else(|_| "rvs".into());
             let script_path = tmp_dir.join("phonecam_sysinstall.sh");
             let sys_script = format!(
                 r#"#!/usr/bin/env bash

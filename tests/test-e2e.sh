@@ -172,8 +172,6 @@ REQUIRED_FILES=(
     "docs/release-process.md"
     "pkgbuild/PKGBUILD"
     "pkgbuild/phonecam.desktop"
-    "scripts/install.sh"
-    "scripts/uninstall.sh"
     "scripts/capture-screenshot.sh"
     "src/lib.rs"
     "src/main.rs"
