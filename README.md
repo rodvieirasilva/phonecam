@@ -110,6 +110,17 @@ graph LR
 
 ## Installation & System Packaging
 
+### Why `sudo` is recommended during installation
+Running `sudo phonecam install` (or running `./phonecam install` and accepting the one-time desktop Polkit prompt) configures your system once so that daily streaming requires zero passwords:
+1. **Zero-Password Runtime Operation**: Creates `/etc/sudoers.d/phonecam-v4l2loopback`, granting passwordless rights strictly for `/usr/bin/modprobe v4l2loopback`, `/usr/bin/rmmod v4l2loopback`, and `/usr/bin/chmod 666 /dev/video*`. Because of this, **PhoneCam NEVER prompts you for a sudo password when starting or stopping the webcam!**
+2. **Kernel Module Auto-Loading**: Writes `/etc/modprobe.d/v4l2loopback.conf` (`exclusive_caps=1`) and `/etc/modules-load.d/v4l2loopback.conf` so `/dev/video10` automatically loads at boot and is recognized as a genuine capture device by Chromium, Brave, Zoom, Meet, and OBS.
+3. **Udev & Group Permissions**: Installs `/etc/udev/rules.d/99-v4l2loopback.rules` (`MODE="0666"`, `GROUP="video"`) and adds your user to the `video` group, guaranteeing unrestricted non-root access to `/dev/video10`.
+4. **Desktop Launcher & Icons**: Installs the binary to `/usr/local/bin/phonecam`, installs the application launcher to `/usr/share/applications/phonecam.desktop`, and updates the system icon cache.
+5. **Preserved User Ownership**: When run as `sudo phonecam install`, PhoneCam automatically detects `$SUDO_USER` and sets correct user ownership on `~/.config/phonecam` and `~/.local/bin/phonecam`, ensuring your home directory remains owned by your user account.
+
+> [!NOTE]
+> If you prefer a user-space only setup without system modification, run `phonecam install --user` (installs solely to `~/.local/bin` and `~/.local/share`).
+
 ### Option 1: Install from Downloaded Prebuilt Binary (Recommended)
 You can install PhoneCam directly without requiring Rust or Cargo:
 
@@ -121,8 +132,8 @@ curl -LO https://github.com/omacom/phonecam/releases/download/v0.2.1/phonecam-v0
 tar -xzf phonecam-v0.2.1-x86_64-linux.tar.gz
 cd phonecam-v0.2.1-x86_64-linux
 
-# 3. Run native installer (same architecture as SoundThis)
-./phonecam install
+# 3. Run native installer with sudo (one-time setup for zero runtime password prompts)
+sudo ./phonecam install
 ```
 
 ### Option 2: Build & Install with mise (Tool Manager)
@@ -130,7 +141,7 @@ If you use [mise](https://mise.jdx.dev):
 
 ```bash
 cd ~/dev/phonecam
-mise run install
+mise run install   # or: sudo $(which phonecam) install
 ```
 
 ### Option 3: Build & Install from Source (Cargo)
@@ -153,7 +164,7 @@ The native installer:
 
 To cleanly uninstall at any time:
 ```bash
-phonecam uninstall   # or: mise run uninstall
+sudo phonecam uninstall   # or: phonecam uninstall
 ```
 
 ---
@@ -283,7 +294,7 @@ mise run test:e2e     # or: ./tests/test-package-e2e.sh
 PhoneCam implements hardware-level fault tolerance to survive sudden USB cable disconnects and Wi-Fi latency drops:
 - **Zero-Drop Standby Slate**: If the phone is abruptly unplugged or Wi-Fi drops, PhoneCam immediately transitions `/dev/video10` to an internal standby loop. Client applications (OBS, Discord, Zoom, Google Meet, Brave) remain connected without encountering device errors or EOF.
 - **Autonomous Recovery**: A continuous background health task polls ADB and attempts saved Wi-Fi reconnection. As soon as the smartphone reconnects, PhoneCam cleanly exits standby and resumes the studio stream seamlessly.
-- **Automated Verification**: Run `mise run test:reconnect` to verify that an active video consumer survives mid-stream cable disconnects and resumes live video upon reconnection.
+- **Automated Verification**: Run `mise run test:reconnect` to run a 5-cycle disconnect/reconnect stress test (>= 5s standby each) and verify via Optical Character Recognition (OCR) that the consumer survives uninterrupted and displays the exact reconnected number on screen.
 
 ### Browser Compatibility Testing
 PhoneCam includes an interactive WebRTC test page (`tests/webcam-test.html`) designed specifically to verify virtual webcam device capture in Chromium, Brave, and Firefox:

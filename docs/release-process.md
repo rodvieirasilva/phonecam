@@ -30,7 +30,13 @@ mise run test:perf    # or: ./tests/test-perf-e2e.sh
 # 7. Terminal TUI dashboard auto-detach & banner test
 mise run test:tui     # or: ./tests/test-tui-e2e.sh
 
-# 8. Full package and repository lifecycle verification
+# 8. Browser WebRTC camera capture verification
+mise run test:browser # or: ./tests/test-browser-e2e.sh
+
+# 9. Cable disconnect & auto-reconnect fault tolerance test
+mise run test:reconnect # or: ./tests/test-reconnect-e2e.sh
+
+# 10. Full package and repository lifecycle verification
 mise run test:e2e     # or: ./tests/test-package-e2e.sh
 ```
 
@@ -38,15 +44,15 @@ mise run test:e2e     # or: ./tests/test-package-e2e.sh
 
 ## 2. Version Bumping Checklist
 
-When incrementing the version (e.g. from `0.1.0` to `0.2.0`):
+When incrementing the version (e.g. from `0.1.0` to `0.2.1`):
 
 | File | Field / Purpose | Verification |
 |---|---|---|
 | `Cargo.toml` | `[package] version = "X.Y.Z"` | Crates version |
-| `src/cli.rs` | `version = "X.Y.Z"` in `#[command(...)]` | `phonecam --version` matches |
+| `src/cli.rs` | Uses `env!("CARGO_PKG_VERSION")` | `phonecam --version` matches |
 | `pkgbuild/PKGBUILD` | `pkgver=X.Y.Z`, `pkgrel=1` | Arch Linux packaging |
 | `src/ui/gtk_app.rs` | Uses `env!("CARGO_PKG_VERSION")` | Window title: `PhoneCam vX.Y.Z` |
-| `src/tui.rs` | Uses `env!("CARGO_PKG_VERSION")` | Header: `PHONECAM VIRTUAL WEBCAM vX.Y.Z` |
+| `src/tui.rs` | Uses `env!("CARGO_PKG_VERSION")` | Header: `PHONECAM VIRTUAL WEBCAM (vX.Y.Z)` |
 | `README.md` | Version badges / feature highlights | Documentation accuracy |
 | `AGENTS.md` | Architecture, versioning & test standards | Contributor guidelines |
 | `assets/*.png` | Regenerate with `./scripts/capture-screenshot.sh` | Live screenshots reflect version |
