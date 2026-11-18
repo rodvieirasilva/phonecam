@@ -1,6 +1,6 @@
 # Maintainer: Rodrigo Vieira <rodvieirasilva@gmail.com>
 pkgname=phonecam
-pkgver=0.2.1
+pkgver=0.2.2
 pkgrel=1
 pkgdesc="High-performance smartphone webcam virtual device manager for Omarchy Linux"
 arch=('x86_64')

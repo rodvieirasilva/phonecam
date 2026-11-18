@@ -44,7 +44,7 @@ mise run test:e2e     # or: ./tests/test-package-e2e.sh
 
 ## 2. Version Bumping Checklist
 
-When incrementing the version (e.g. from `0.1.0` to `0.2.1`):
+When incrementing the version (e.g. from `0.1.0` to `0.2.2`):
 
 | File | Field / Purpose | Verification |
 |---|---|---|

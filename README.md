@@ -5,7 +5,7 @@
 <h1 align="center">PhoneCam</h1>
 
 <p align="center">
-  <a href="https://github.com/omacom/phonecam/releases"><img src="https://img.shields.io/badge/version-v0.2.1-blue.svg?style=flat-square" alt="Version v0.2.1"></a>
+  <a href="https://github.com/omacom/phonecam/releases"><img src="https://img.shields.io/badge/version-v0.2.2-blue.svg?style=flat-square" alt="Version v0.2.2"></a>
   <img src="https://img.shields.io/badge/Rust-2024_Edition-orange.svg?style=flat-square" alt="Rust 2024">
   <img src="https://img.shields.io/badge/Platform-Omarchy_Linux-purple.svg?style=flat-square" alt="Omarchy Linux">
   <img src="https://img.shields.io/badge/License-MIT-green.svg?style=flat-square" alt="MIT License">
@@ -90,7 +90,7 @@ graph LR
 - **Mathematically Aligned TUI Dashboard**:
   - Crossterm-powered terminal interface formatted with dynamic width padding to ensure consistent 68-character borders, live connection parameters, battery readout, and instantaneous any-key auto-detachment.
 - **Integrated Version Display**:
-  - Live version indicator (`v0.2.1`) prominently displayed in the GTK4 window title, Adwaita header subtitle, and TUI top banner.
+  - Live version indicator (`v0.2.2`) prominently displayed in the GTK4 window title, Adwaita header subtitle, and TUI top banner.
 
 ---
 
@@ -160,11 +160,11 @@ You can install PhoneCam directly without requiring Rust or Cargo:
 
 ```bash
 # 1. Download release archive for your architecture (x86_64 or aarch64 / arm64)
-curl -LO https://github.com/omacom/phonecam/releases/download/v0.2.1/phonecam-v0.2.1-x86_64-linux.tar.gz
+curl -LO https://github.com/omacom/phonecam/releases/download/v0.2.2/phonecam-v0.2.2-x86_64-linux.tar.gz
 
 # 2. Extract archive
-tar -xzf phonecam-v0.2.1-x86_64-linux.tar.gz
-cd phonecam-v0.2.1-x86_64-linux
+tar -xzf phonecam-v0.2.2-x86_64-linux.tar.gz
+cd phonecam-v0.2.2-x86_64-linux
 
 # 3. Run native installer with sudo (one-time setup for zero runtime password prompts)
 sudo ./phonecam install
