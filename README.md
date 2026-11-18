@@ -96,15 +96,49 @@ graph LR
 
 ## Requirements & Dependencies
 
-| Dependency | Purpose | Arch Linux Package |
+### 1. Dependency Overview
+
+| Component | Package / Tool | Purpose |
 |---|---|---|
-| `rust` & `cargo` | Compilation | `pacman -S rust` |
-| `scrcpy` | Android camera video capture engine | `pacman -S scrcpy` |
-| `android-tools` | ADB communication | `pacman -S android-tools` |
-| `v4l2loopback-dkms` | Kernel virtual video device | `pacman -S v4l2loopback-dkms` |
-| `gtk4` | Native GTK4 desktop toolkit | `pacman -S gtk4` |
-| `libadwaita` | Modern Omarchy Adwaita widgets | `pacman -S libadwaita` |
-| `ffmpeg` | Inversion stream filter | `pacman -S ffmpeg` |
+| **Runtime** | `scrcpy` (5.x+) | Android camera video capture engine |
+| **Runtime** | `android-tools` (`adb`) | Android Debug Bridge device communication & Wi-Fi TCP/IP |
+| **Runtime** | `v4l2loopback-dkms` | Linux kernel virtual video loopback module (`/dev/video10`) |
+| **Runtime** | `linux-headers` | Kernel header files required to build/load the v4l2loopback module |
+| **Runtime / GUI** | `gtk4` & `libadwaita` | Native Omarchy desktop interface and Adwaita design system |
+| **Runtime / Pipeline** | `ffmpeg` | Video transformations (invert/negative, standby slate loops) |
+| **Build from Source** | `rust` & `cargo` | Rust compiler (2024 edition) and package manager |
+| **Build from Source** | `pkg-config` | Build-time native library discovery |
+| **Testing & OCR** | `tesseract` & language data | Optical Character Recognition engine for stream verification (`mise run test:ocr`, `mise run test:reconnect`) |
+| **Testing & OCR** | `imagemagick` | High-contrast test pattern rendering for video OCR test suites |
+| **Testing & Browser** | `brave` or `chromium` | Headless WebRTC device capture E2E test (`mise run test:browser`) |
+
+---
+
+### 2. How to Install Dependencies Locally
+
+Choose the package manager command corresponding to your Linux distribution:
+
+#### Arch Linux / Omarchy (Recommended)
+```bash
+# Core runtime + build tools
+sudo pacman -S --needed rust cargo scrcpy android-tools v4l2loopback-dkms linux-headers gtk4 libadwaita ffmpeg
+
+# Testing & E2E verification dependencies (OCR & Browser)
+sudo pacman -S --needed tesseract tesseract-data-eng imagemagick brave
+```
+
+#### Ubuntu / Debian
+```bash
+sudo apt update
+sudo apt install -y cargo rustc pkg-config scrcpy adb v4l2loopback-dkms linux-headers-generic \
+    libgtk-4-dev libadwaita-1-dev ffmpeg tesseract-ocr tesseract-ocr-eng imagemagick chromium-browser
+```
+
+#### Fedora
+```bash
+sudo dnf install -y cargo rust pkg-config scrcpy android-tools v4l2loopback kernel-devel \
+    gtk4-devel libadwaita-devel ffmpeg tesseract tesseract-langpack-eng ImageMagick chromium
+```
 
 ---
 
