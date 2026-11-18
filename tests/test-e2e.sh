@@ -160,6 +160,14 @@ else
     fail "Performance, Memory, CPU & Teardown test failed"
 fi
 
+# 4e. Browser WebRTC Virtual Camera E2E Test
+echo "==> Step 4e: Testing Browser WebRTC Virtual Camera E2E..."
+if ./tests/test-browser-e2e.sh; then
+    pass "Browser WebRTC camera enumeration and attachment passed"
+else
+    fail "Browser WebRTC test failed"
+fi
+
 # 5. Package structure verification
 echo "==> Step 5: Testing Repository & Documentation Structure..."
 REQUIRED_FILES=(
@@ -187,6 +195,8 @@ REQUIRED_FILES=(
     "tests/test-tui-e2e.sh"
     "tests/test-ocr-e2e.sh"
     "tests/test-perf-e2e.sh"
+    "tests/test-browser-e2e.sh"
+    "tests/webcam-test.html"
     "tests/tst_ui.qml"
     "tests/test-ui.sh"
 )

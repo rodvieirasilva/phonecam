@@ -23,6 +23,9 @@ echo "==> Running Video Stream Hardware OCR E2E Verification..."
 echo "==> Running Performance, Memory, CPU & Teardown E2E..."
 ./tests/test-perf-e2e.sh
 
+echo "==> Running Browser WebRTC Virtual Camera E2E Suite..."
+./tests/test-browser-e2e.sh
+
 echo "==> Running CLI E2E Tests..."
 ./tests/test-e2e.sh
 

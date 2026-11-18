@@ -84,7 +84,7 @@ chmod +x "$MOCK_BIN_DIR/scrcpy"
 # Prepend mock bin dir to PATH
 export PATH="$MOCK_BIN_DIR:$PATH"
 
-python3 -c '
+python3 << 'EOF'
 import pty, os, time, subprocess, sys
 
 bin_path = os.environ.get("PHONECAM_BIN", "target/release/phonecam")
@@ -123,8 +123,13 @@ if "PHONECAM VIRTUAL WEBCAM" not in out_text:
     print("Output received:\n", out_text, file=sys.stderr)
     sys.exit(1)
 
-if "v0.2.0" not in out_text and "v" not in out_text:
-    print("[FAIL] Missing version in TUI banner output", file=sys.stderr)
+with open("Cargo.toml") as f:
+    import re
+    ver_match = re.search(r'^version\s*=\s*"([^"]+)"', f.read(), re.M)
+    pkg_ver = ver_match.group(1) if ver_match else ""
+
+if f"v{pkg_ver}" not in out_text and "v" not in out_text:
+    print(f"[FAIL] Missing version v{pkg_ver} in TUI banner output", file=sys.stderr)
     sys.exit(1)
 
 # Verify no bash or printf syntax errors in terminal output
@@ -135,7 +140,7 @@ for forbidden in ["bash: line", "printf:", "invalid format"]:
         sys.exit(1)
 
 print("  [PASS] TUI dashboard rendered cleanly without shell syntax errors and auto-detached on keypress!")
-'
+EOF
 
 echo "=========================================================="
 echo "  [PASS] TUI E2E Test Passed Successfully!"

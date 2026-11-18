@@ -89,12 +89,12 @@ phonecam --version
 ```bash
 # 1. Commit changes
 git add -A
-git commit -m "chore(release): bump version to v0.2.0"
+git commit -m "chore(release): bump version to v0.2.1"
 git push origin master
 
 # 2. Create annotated tag
-git tag -a v0.2.0 -m "Release v0.2.0"
-git push origin v0.2.0
+git tag -a v0.2.1 -m "Release v0.2.1"
+git push origin v0.2.1
 ```
 
 Pushing the `v*` tag automatically triggers the GitHub Actions `.github/workflows/release.yml` workflow, compiling release binaries for `x86_64` and `aarch64`, generating `.tar.gz` archives and `.sha256` checksums, and publishing the GitHub release.

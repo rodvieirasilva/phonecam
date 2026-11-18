@@ -40,6 +40,10 @@ run = "./tests/test-tui-e2e.sh"
 description = "Run GTK4 & Qt Quick UI click simulation and testID test suite"
 run = "./tests/test-ui.sh"
 
+[tasks."test:browser"]
+description = "Run headless browser (Brave / Chromium) WebRTC virtual camera verification"
+run = "./tests/test-browser-e2e.sh"
+
 [tasks."test:e2e"]
 description = "Run full system package and repository lifecycle verification"
 run = "./tests/test-package-e2e.sh"

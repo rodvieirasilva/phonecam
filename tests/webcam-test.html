@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PhoneCam WebRTC Virtual Device Verification</title>
+  <style>
+    :root {
+      --bg: #18181b;
+      --card: #27272a;
+      --border: #3f3f46;
+      --accent: #7aa2f7;
+      --text: #f4f4f5;
+      --muted: #a1a1aa;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+    }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    .container {
+      max-width: 800px;
+      width: 100%;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 24px;
+    }
+    h1 {
+      font-size: 1.8rem;
+      margin: 0 0 8px 0;
+      color: var(--text);
+    }
+    p.subtitle {
+      color: var(--muted);
+      margin: 0;
+      font-size: 0.95rem;
+    }
+    .card {
+      background-color: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+    }
+    .video-container {
+      position: relative;
+      width: 100%;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      aspect-ratio: 16 / 9;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      background: rgba(255, 255, 255, 0.1);
+      margin-bottom: 12px;
+    }
+    .status-badge.success {
+      background: rgba(16, 185, 129, 0.2);
+      color: var(--success);
+      border: 1px solid var(--success);
+    }
+    .status-badge.danger {
+      background: rgba(239, 68, 68, 0.2);
+      color: var(--danger);
+      border: 1px solid var(--danger);
+    }
+    .status-badge.warning {
+      background: rgba(245, 158, 11, 0.2);
+      color: var(--warning);
+      border: 1px solid var(--warning);
+    }
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+    }
+    button {
+      background: var(--accent);
+      color: #0f172a;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: opacity 0.15s ease;
+    }
+    button:hover {
+      opacity: 0.9;
+    }
+    button.secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    button.secondary:hover {
+      background: rgba(255, 255, 255, 0.05);
+    }
+    pre {
+      background: #111;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      color: #93c5fd;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      margin-top: 12px;
+    }
+    th, td {
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      color: var(--muted);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>PhoneCam WebRTC Verification</h1>
+      <p class="subtitle">HTML5 / WebRTC browser compatibility test for /dev/video10</p>
+    </header>
+
+    <div class="card">
+      <div id="status-badge" class="status-badge warning">
+        <span>●</span> <span id="status-text">Ready to test</span>
+      </div>
+
+      <div class="video-container">
+        <video id="webcam-preview" autoplay playsinline muted></video>
+      </div>
+
+      <div class="btn-group">
+        <button id="btn-start" onclick="runWebcamTest()">Start Video Stream</button>
+        <button id="btn-stop" class="secondary" onclick="stopWebcamStream()">Stop Stream</button>
+        <button id="btn-refresh" class="secondary" onclick="enumerateAllDevices()">Scan Devices</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top:0;">Diagnostics & Diagnostics Log</h3>
+      <table id="devices-table">
+        <thead>
+          <tr>
+            <th>Camera Label</th>
+            <th>Kind</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="devices-list">
+          <tr><td colspan="3" style="color:var(--muted);">No devices scanned yet.</td></tr>
+        </tbody>
+      </table>
+      <h4 style="margin-bottom:6px; margin-top:16px;">Stream Metrics</h4>
+      <pre id="stream-info">No active stream</pre>
+    </div>
+  </div>
+
+  <script>
+    let activeStream = null;
+    window.phonecamTestResult = null;
+
+    function updateStatus(state, message) {
+      const badge = document.getElementById('status-badge');
+      const text = document.getElementById('status-text');
+      badge.className = 'status-badge ' + state;
+      text.innerText = message;
+    }
+
+    async function enumerateAllDevices() {
+      try {
+        console.log("PHONECAM_SCAN_START");
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(d => d.kind === 'videoinput');
+        console.log("PHONECAM_DEVICES: " + JSON.stringify(videoDevices.map(d => ({ kind: d.kind, label: d.label, deviceId: d.deviceId }))));
+        const tbody = document.getElementById('devices-list');
+        tbody.innerHTML = '';
+
+        if (videoDevices.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="3" style="color:var(--danger);">No video devices detected</td></tr>';
+          return videoDevices;
+        }
+
+        videoDevices.forEach(d => {
+          const tr = document.createElement('tr');
+          const isPhoneCam = d.label.toLowerCase().includes('phonecam') || d.label.toLowerCase().includes('virtual');
+          tr.innerHTML = `
+            <td style="font-weight:${isPhoneCam ? 'bold' : 'normal'}; color:${isPhoneCam ? 'var(--accent)' : 'inherit'}">
+              ${d.label || '(Permission needed to view label)'}
+            </td>
+            <td>${d.kind}</td>
+            <td style="color:${isPhoneCam ? 'var(--success)' : 'var(--muted)'}">${isPhoneCam ? 'PhoneCam Match' : 'Other Camera'}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        return videoDevices;
+      } catch (err) {
+        console.error("enumerateDevices failed:", err);
+        return [];
+      }
+    }
+
+    async function runWebcamTest() {
+      console.log("PHONECAM_RUN_WEBCAM_TEST_CALLED");
+      updateStatus('warning', 'Scanning video devices...');
+      const videoEl = document.getElementById('webcam-preview');
+      const infoEl = document.getElementById('stream-info');
+
+      try {
+        // 1. Initial scan or request permission if labels are empty
+        let devices = await navigator.mediaDevices.enumerateDevices();
+        let videoDevices = devices.filter(d => d.kind === 'videoinput');
+
+        // Target PhoneCam device specifically if possible
+        let targetDevice = videoDevices.find(d => 
+          d.label.toLowerCase().includes('phonecam') || 
+          d.label.toLowerCase().includes('virtual')
+        );
+
+        const constraints = {
+          video: targetDevice && targetDevice.deviceId 
+            ? { deviceId: { exact: targetDevice.deviceId } }
+            : true,
+          audio: false
+        };
+        console.log("PHONECAM_CALLING_GET_USER_MEDIA: " + JSON.stringify(constraints));
+
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        console.log("PHONECAM_GOT_STREAM: " + stream.id);
+        activeStream = stream;
+        videoEl.srcObject = stream;
+
+        // Re-enumerate now that permission is granted (labels are now populated)
+        devices = await enumerateAllDevices();
+        videoDevices = devices.filter(d => d.kind === 'videoinput');
+        targetDevice = videoDevices.find(d => 
+          d.label.toLowerCase().includes('phonecam') || 
+          d.label.toLowerCase().includes('virtual')
+        );
+
+        await new Promise((resolve) => {
+          videoEl.onloadedmetadata = () => resolve();
+          setTimeout(resolve, 1500);
+        });
+
+        const track = stream.getVideoTracks()[0];
+        const settings = track.getSettings();
+        const width = videoEl.videoWidth || settings.width || 0;
+        const height = videoEl.videoHeight || settings.height || 0;
+
+        const result = {
+          success: true,
+          label: track.label || (targetDevice ? targetDevice.label : 'Unknown Camera'),
+          isPhoneCam: (track.label && track.label.toLowerCase().includes('phonecam')) || (targetDevice && targetDevice.label.toLowerCase().includes('phonecam')),
+          trackState: track.readyState,
+          width: width,
+          height: height,
+          frameRate: settings.frameRate || 30,
+          deviceId: track.getSettings().deviceId
+        };
+
+        infoEl.innerText = JSON.stringify(result, null, 2);
+        updateStatus('success', `Live: ${result.label} (${width}x${height})`);
+
+        window.phonecamTestResult = result;
+        console.log("PHONECAM_STREAM_RESULT: " + JSON.stringify(result));
+        return result;
+      } catch (err) {
+        console.error("Camera acquisition error:", err);
+        const errorResult = {
+          success: false,
+          error: err.name + ': ' + err.message
+        };
+        infoEl.innerText = JSON.stringify(errorResult, null, 2);
+        updateStatus('danger', 'Error: ' + err.message);
+        window.phonecamTestResult = errorResult;
+        console.log("PHONECAM_STREAM_ERROR: " + JSON.stringify(errorResult));
+        return errorResult;
+      }
+    }
+
+    function stopWebcamStream() {
+      if (activeStream) {
+        activeStream.getTracks().forEach(t => t.stop());
+        activeStream = null;
+      }
+      const videoEl = document.getElementById('webcam-preview');
+      videoEl.srcObject = null;
+      updateStatus('warning', 'Stream stopped');
+      document.getElementById('stream-info').innerText = 'Stream stopped';
+    }
+
+    // Auto-run if requested via URL param ?autorun=1
+    window.addEventListener('DOMContentLoaded', () => {
+      enumerateAllDevices();
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('autorun') === '1') {
+        runWebcamTest();
+      }
+    });
+  </script>
+</body>
+</html>

@@ -5,7 +5,7 @@
 <h1 align="center">PhoneCam</h1>
 
 <p align="center">
-  <a href="https://github.com/omacom/phonecam/releases"><img src="https://img.shields.io/badge/version-v0.2.0-blue.svg?style=flat-square" alt="Version v0.2.0"></a>
+  <a href="https://github.com/omacom/phonecam/releases"><img src="https://img.shields.io/badge/version-v0.2.1-blue.svg?style=flat-square" alt="Version v0.2.1"></a>
   <img src="https://img.shields.io/badge/Rust-2024_Edition-orange.svg?style=flat-square" alt="Rust 2024">
   <img src="https://img.shields.io/badge/Platform-Omarchy_Linux-purple.svg?style=flat-square" alt="Omarchy Linux">
   <img src="https://img.shields.io/badge/License-MIT-green.svg?style=flat-square" alt="MIT License">
@@ -90,7 +90,7 @@ graph LR
 - **Mathematically Aligned TUI Dashboard**:
   - Crossterm-powered terminal interface formatted with dynamic width padding to ensure consistent 68-character borders, live connection parameters, battery readout, and instantaneous any-key auto-detachment.
 - **Integrated Version Display**:
-  - Live version indicator (`v0.2.0`) prominently displayed in the GTK4 window title, Adwaita header subtitle, and TUI top banner.
+  - Live version indicator (`v0.2.1`) prominently displayed in the GTK4 window title, Adwaita header subtitle, and TUI top banner.
 
 ---
 
@@ -115,11 +115,11 @@ You can install PhoneCam directly without requiring Rust or Cargo:
 
 ```bash
 # 1. Download release archive for your architecture (x86_64 or aarch64 / arm64)
-curl -LO https://github.com/omacom/phonecam/releases/download/v0.2.0/phonecam-v0.2.0-x86_64-linux.tar.gz
+curl -LO https://github.com/omacom/phonecam/releases/download/v0.2.1/phonecam-v0.2.1-x86_64-linux.tar.gz
 
 # 2. Extract archive
-tar -xzf phonecam-v0.2.0-x86_64-linux.tar.gz
-cd phonecam-v0.2.0-x86_64-linux
+tar -xzf phonecam-v0.2.1-x86_64-linux.tar.gz
+cd phonecam-v0.2.1-x86_64-linux
 
 # 3. Run native installer (same architecture as SoundThis)
 ./phonecam install
@@ -269,9 +269,17 @@ mise run test:perf    # or: ./tests/test-perf-e2e.sh
 # Run complete UI test suite
 mise run test:ui      # or: ./tests/test-ui.sh
 
+# Run headless browser (Brave / Chromium) WebRTC camera capture E2E test
+mise run test:browser # or: ./tests/test-browser-e2e.sh
+
 # Run complete package lifecycle verification
 mise run test:e2e     # or: ./tests/test-package-e2e.sh
 ```
+
+### Browser Compatibility Testing
+PhoneCam includes an interactive WebRTC test page (`tests/webcam-test.html`) designed specifically to verify virtual webcam device capture in Chromium, Brave, and Firefox:
+- **Interactive Test**: Open `tests/webcam-test.html` in your browser to inspect camera device enumeration, video metadata, and live stream frame rates.
+- **Automated Headless Test**: Run `mise run test:browser` to automatically launch an isolated browser instance and verify that WebRTC actively binds to `/dev/video10`.
 
 ### UI TestIDs (`widget_name` / `objectName`) Reference
 For end-to-end automation and testing, all interactive elements in `src/ui/gtk_app.rs` and `src/ui/Main.qml` expose standard test IDs:

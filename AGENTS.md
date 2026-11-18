@@ -56,13 +56,12 @@ phonecam/
 │   ├── PKGBUILD              # Arch Linux package specification for Omarchy
 │   └── phonecam.desktop      # XDG Desktop application launcher
 ├── scripts/
-│   ├── install.sh            # Complete local build & system installation
-│   ├── uninstall.sh          # System uninstaller
 │   └── capture-screenshot.sh # Pixel-perfect Wayland screenshot utility
 ├── src/
 │   ├── main.rs               # Entry point, mode dispatcher
 │   ├── cli.rs                # CLI argument parser (Clap)
 │   ├── config.rs             # Configuration models, scrcpy flag generators
+│   ├── installer.rs          # Native user & system installer (SoundThis pattern)
 │   ├── instance.rs           # Single-instance mutual exclusion lock (flock)
 │   ├── adb.rs                # ADB device detection, status polling, battery
 │   ├── v4l2.rs               # Kernel module setup, permissions, teardown
@@ -80,6 +79,7 @@ phonecam/
 │   ├── cli_tests.rs          # CLI flag & parser tests
 │   ├── config_tests.rs       # Config defaults & serialization tests
 │   ├── fake_phone_e2e.rs     # Mock phone end-to-end integration tests
+│   ├── installer_tests.rs    # Native installer lifecycle tests
 │   ├── instance_tests.rs     # Single-instance lock unit & lifecycle tests
 │   ├── pipeline_tests.rs     # Stream argument & lifecycle tests
 │   ├── server_tests.rs       # Axum REST API endpoint tests
@@ -91,6 +91,8 @@ phonecam/
 │   ├── test-tui-e2e.sh       # Terminal TUI dashboard PTY & keypress E2E test
 │   ├── test-ocr-e2e.sh       # Synthetic camera stream transformations OCR E2E verification
 │   ├── test-perf-e2e.sh      # Memory usage (RSS), CPU benchmarks, and teardown E2E tests
+│   ├── test-browser-e2e.sh   # Headless Brave/Chromium WebRTC video capture E2E test
+│   ├── webcam-test.html      # Interactive WebRTC device verification test page
 │   ├── test-e2e.sh           # CLI, desktop & asset E2E script
 │   ├── test-package-e2e.sh   # Full package lifecycle test runner
 │   └── test-android-emulator.sh # Android emulator / live hardware test script
@@ -173,6 +175,9 @@ mise run test:tui     # or: ./tests/test-tui-e2e.sh
 
 # Run Qt Quick UI click simulation & testID suite (offscreen)
 mise run test:ui      # or: ./tests/test-ui.sh
+
+# Run headless browser (Brave / Chromium) WebRTC camera capture E2E suite
+mise run test:browser # or: ./tests/test-browser-e2e.sh
 
 # Run complete system E2E validation
 mise run test:e2e     # or: ./tests/test-package-e2e.sh
