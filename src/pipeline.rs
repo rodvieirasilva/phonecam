@@ -115,13 +115,17 @@ impl StreamManager {
         &self.state
     }
 
+    /// Check if currently in standby mode waiting for reconnection
+    pub fn is_standby(&self) -> bool {
+        self.state == StreamState::StandbyWaitingReconnect
+    }
+
     pub fn is_running(&mut self) -> bool {
         if let Some(child) = &mut self.active_child {
             match child.try_wait() {
                 Ok(None) => true,
                 Ok(Some(status)) => {
                     info!("Stream process exited with status: {}", status);
-                    self.state = StreamState::Stopped;
                     false
                 }
                 Err(e) => {
@@ -134,9 +138,28 @@ impl StreamManager {
         }
     }
 
+    /// Stop active stream processes (scrcpy / ffmpeg) without detaching the virtual device node
+    pub fn stop_stream_processes(&mut self) {
+        self.exit_standby();
+
+        if let Some(mut child) = self.active_child.take() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+
+        if let Some(mut child) = self.ffmpeg_child.take() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+
+        let _ = Command::new("pkill")
+            .args(["-f", "scrcpy.*--video-source=camera"])
+            .output();
+    }
+
     /// Start or restart streaming with updated configuration
     pub fn start(&mut self, config: AppConfig) -> Result<()> {
-        let _ = self.stop();
+        self.stop_stream_processes();
 
         self.config = config;
         self.state = StreamState::Starting;
@@ -220,22 +243,7 @@ impl StreamManager {
     pub fn stop(&mut self) -> Result<()> {
         info!("Stopping camera stream...");
 
-        self.exit_standby();
-
-        if let Some(mut child) = self.active_child.take() {
-            let _ = child.kill();
-            let _ = child.wait();
-        }
-
-        if let Some(mut child) = self.ffmpeg_child.take() {
-            let _ = child.kill();
-            let _ = child.wait();
-        }
-
-        let _ = Command::new("pkill")
-            .args(["-f", "scrcpy.*--video-source=camera"])
-            .output();
-
+        self.stop_stream_processes();
         self.state = StreamState::Stopped;
 
         let _ = detach_loopback_device(self.config.video_nr);
@@ -244,9 +252,9 @@ impl StreamManager {
         Ok(())
     }
 
-    /// Enter standby mode (e.g. when USB cable is unplugged).
+    /// Enter standby mode (e.g. when USB cable is unplugged or Wi-Fi dropped).
     /// Keeps /dev/video10 active with a continuous blank video feed
-    /// so client applications (OBS, Discord, Zoom) don't crash or lose the device.
+    /// so client applications (OBS, Discord, Zoom, Brave) don't crash or lose the device.
     pub fn enter_standby(&mut self) -> Result<()> {
         if self.standby_child.is_some() {
             return Ok(());
@@ -297,19 +305,40 @@ impl StreamManager {
         match self.state {
             StreamState::Running => {
                 if !self.is_running() {
-                    // scrcpy exited unexpectedly (e.g. cable unplugged)
+                    info!(
+                        "Stream process exited unexpectedly (cable unplugged or Wi-Fi drop); entering standby mode..."
+                    );
+                    if let Some(mut child) = self.active_child.take() {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                    }
+                    if let Some(mut child) = self.ffmpeg_child.take() {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                    }
                     let _ = self.enter_standby();
                 }
             }
             StreamState::StandbyWaitingReconnect => {
                 // Poll ADB to check if smartphone has reconnected
-                if let Ok(dev) = crate::adb::detect_device()
-                    && dev.status == crate::adb::DeviceStatus::Connected
-                {
-                    info!("Phone reconnected! Stopping standby and resuming live stream...");
+                let dev_res = crate::adb::detect_device();
+                let is_connected = match dev_res {
+                    Ok(ref d) => d.status == crate::adb::DeviceStatus::Connected,
+                    _ => false,
+                };
+
+                if is_connected {
+                    info!("Phone reconnected! Exiting standby and resuming live stream...");
                     self.exit_standby();
+                    std::thread::sleep(Duration::from_millis(150));
                     let cfg = self.config.clone();
                     let _ = self.start(cfg);
+                } else {
+                    // Try auto-connecting to saved Wi-Fi IP if configured
+                    let state_cfg = crate::config::UserStateConfig::load();
+                    if !state_cfg.last_ip.is_empty() {
+                        let _ = crate::adb::connect_wifi(&state_cfg.last_ip);
+                    }
                 }
             }
             _ => {}

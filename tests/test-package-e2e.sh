@@ -26,6 +26,9 @@ echo "==> Running Performance, Memory, CPU & Teardown E2E..."
 echo "==> Running Browser WebRTC Virtual Camera E2E Suite..."
 ./tests/test-browser-e2e.sh
 
+echo "==> Running Cable Disconnect & Auto-Reconnect Fault Tolerance E2E..."
+./tests/test-reconnect-e2e.sh
+
 echo "==> Running CLI E2E Tests..."
 ./tests/test-e2e.sh
 

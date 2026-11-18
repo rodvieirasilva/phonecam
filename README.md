@@ -272,9 +272,18 @@ mise run test:ui      # or: ./tests/test-ui.sh
 # Run headless browser (Brave / Chromium) WebRTC camera capture E2E test
 mise run test:browser # or: ./tests/test-browser-e2e.sh
 
+# Run cable disconnect & auto-reconnect fault-tolerance E2E test
+mise run test:reconnect # or: ./tests/test-reconnect-e2e.sh
+
 # Run complete package lifecycle verification
 mise run test:e2e     # or: ./tests/test-package-e2e.sh
 ```
+
+### Connection Fault Tolerance & Auto-Reconnection
+PhoneCam implements hardware-level fault tolerance to survive sudden USB cable disconnects and Wi-Fi latency drops:
+- **Zero-Drop Standby Slate**: If the phone is abruptly unplugged or Wi-Fi drops, PhoneCam immediately transitions `/dev/video10` to an internal standby loop. Client applications (OBS, Discord, Zoom, Google Meet, Brave) remain connected without encountering device errors or EOF.
+- **Autonomous Recovery**: A continuous background health task polls ADB and attempts saved Wi-Fi reconnection. As soon as the smartphone reconnects, PhoneCam cleanly exits standby and resumes the studio stream seamlessly.
+- **Automated Verification**: Run `mise run test:reconnect` to verify that an active video consumer survives mid-stream cable disconnects and resumes live video upon reconnection.
 
 ### Browser Compatibility Testing
 PhoneCam includes an interactive WebRTC test page (`tests/webcam-test.html`) designed specifically to verify virtual webcam device capture in Chromium, Brave, and Firefox:

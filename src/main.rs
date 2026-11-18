@@ -170,14 +170,20 @@ async fn main() -> Result<()> {
         );
         let mut mgr = StreamManager::new(config.clone());
         mgr.start(config)?;
-        println!("Streaming started. Press Ctrl+C to stop.");
+        println!("Streaming started with fault tolerance. Press Ctrl+C to stop.");
         let mut term_sig =
             tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())?;
         let mut hup_sig = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::hangup())?;
-        tokio::select! {
-            _ = tokio::signal::ctrl_c() => {},
-            _ = term_sig.recv() => {},
-            _ = hup_sig.recv() => {},
+
+        loop {
+            tokio::select! {
+                _ = tokio::signal::ctrl_c() => break,
+                _ = term_sig.recv() => break,
+                _ = hup_sig.recv() => break,
+                _ = tokio::time::sleep(tokio::time::Duration::from_millis(1000)) => {
+                    let _ = mgr.check_and_recover();
+                }
+            }
         }
         mgr.stop()?;
         return Ok(());
@@ -202,6 +208,18 @@ async fn run_gui(config: AppConfig) -> Result<()> {
     // Spawn the local API server in the background
     tokio::spawn(async move {
         axum::serve(listener, router).await.unwrap();
+    });
+
+    // Spawn background fault-tolerance health monitor
+    let app_state_health = app_state.clone();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(1000));
+        loop {
+            interval.tick().await;
+            if let Ok(mut mgr) = app_state_health.stream_mgr.lock() {
+                let _ = mgr.check_and_recover();
+            }
+        }
     });
 
     // Handle termination signals (SIGINT, SIGTERM, SIGHUP) to guarantee hardware teardown

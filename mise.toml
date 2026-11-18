@@ -44,6 +44,10 @@ run = "./tests/test-ui.sh"
 description = "Run headless browser (Brave / Chromium) WebRTC virtual camera verification"
 run = "./tests/test-browser-e2e.sh"
 
+[tasks."test:reconnect"]
+description = "Run cable disconnect & auto-reconnect fault-tolerance E2E test"
+run = "./tests/test-reconnect-e2e.sh"
+
 [tasks."test:e2e"]
 description = "Run full system package and repository lifecycle verification"
 run = "./tests/test-package-e2e.sh"

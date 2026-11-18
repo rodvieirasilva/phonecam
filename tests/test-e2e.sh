@@ -168,6 +168,14 @@ else
     fail "Browser WebRTC test failed"
 fi
 
+# 4f. Cable Disconnect & Auto-Reconnect E2E Test
+echo "==> Step 4f: Testing Cable Disconnect & Auto-Reconnect Fault Tolerance..."
+if ./tests/test-reconnect-e2e.sh; then
+    pass "Cable disconnect standby and auto-reconnection passed"
+else
+    fail "Cable disconnect & auto-reconnect test failed"
+fi
+
 # 5. Package structure verification
 echo "==> Step 5: Testing Repository & Documentation Structure..."
 REQUIRED_FILES=(
@@ -192,10 +200,12 @@ REQUIRED_FILES=(
     "tests/installer_tests.rs"
     "tests/instance_tests.rs"
     "tests/ui_test.rs"
+    "tests/reconnect_tests.rs"
     "tests/test-tui-e2e.sh"
     "tests/test-ocr-e2e.sh"
     "tests/test-perf-e2e.sh"
     "tests/test-browser-e2e.sh"
+    "tests/test-reconnect-e2e.sh"
     "tests/webcam-test.html"
     "tests/tst_ui.qml"
     "tests/test-ui.sh"

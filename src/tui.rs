@@ -108,10 +108,8 @@ pub fn run_tui(config: AppConfig) -> Result<()> {
             break true;
         }
 
-        // Check if stream crashed unexpectedly
-        if !mgr.is_running() {
-            break false;
-        }
+        // Health check & fault-tolerant recovery on cable disconnect or Wi-Fi drop
+        let _ = mgr.check_and_recover();
     };
 
     // Restore terminal

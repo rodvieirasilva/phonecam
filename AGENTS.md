@@ -92,7 +92,9 @@ phonecam/
 │   ├── test-ocr-e2e.sh       # Synthetic camera stream transformations OCR E2E verification
 │   ├── test-perf-e2e.sh      # Memory usage (RSS), CPU benchmarks, and teardown E2E tests
 │   ├── test-browser-e2e.sh   # Headless Brave/Chromium WebRTC video capture E2E test
+│   ├── test-reconnect-e2e.sh # Cable disconnect & auto-reconnect fault-tolerance E2E test
 │   ├── webcam-test.html      # Interactive WebRTC device verification test page
+│   ├── reconnect_tests.rs    # Fault tolerance & reconnection unit tests
 │   ├── test-e2e.sh           # CLI, desktop & asset E2E script
 │   ├── test-package-e2e.sh   # Full package lifecycle test runner
 │   └── test-android-emulator.sh # Android emulator / live hardware test script
@@ -178,6 +180,9 @@ mise run test:ui      # or: ./tests/test-ui.sh
 
 # Run headless browser (Brave / Chromium) WebRTC camera capture E2E suite
 mise run test:browser # or: ./tests/test-browser-e2e.sh
+
+# Run cable disconnect & auto-reconnect fault-tolerance E2E suite
+mise run test:reconnect # or: ./tests/test-reconnect-e2e.sh
 
 # Run complete system E2E validation
 mise run test:e2e     # or: ./tests/test-package-e2e.sh
