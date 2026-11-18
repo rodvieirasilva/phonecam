@@ -211,12 +211,13 @@ echo "  [PASS] Consumer application successfully reading from /dev/video10 (PID:
 # Verify initial frame OCR
 if [ "$HAVE_OCR" = true ] && [ -n "$MAGICK" ]; then
     ocr_init=""
-    for _ in {1..8}; do
-        ocr_init=$(tesseract "$READER_FRAME" stdout --psm 7 -l eng 2>/dev/null | tr -d '[:space:]')
+    for _ in {1..12}; do
+        cp -f "$READER_FRAME" "$TMP_DIR/snap.png" 2>/dev/null || true
+        ocr_init=$((tesseract "$TMP_DIR/snap.png" stdout --psm 7 -l eng 2>/dev/null || true) | tr -d '[:space:]')
         if [[ "$ocr_init" == *"$TOKEN_INIT"* ]]; then
             break
         fi
-        sleep 0.5
+        sleep 0.4
     done
     if [[ "$ocr_init" == *"$TOKEN_INIT"* ]]; then
         echo "  [PASS] Initial stream verified via OCR: read token '$TOKEN_INIT'"
@@ -255,7 +256,8 @@ for cycle in $(seq 1 "$CYCLES"); do
     if [ "$HAVE_OCR" = true ] && [ -n "$MAGICK" ]; then
         for attempt in {1..20}; do
             sleep 0.4
-            ocr_rec=$(tesseract "$READER_FRAME" stdout --psm 7 -l eng 2>/dev/null | tr -d '[:space:]')
+            cp -f "$READER_FRAME" "$TMP_DIR/snap.png" 2>/dev/null || true
+            ocr_rec=$((tesseract "$TMP_DIR/snap.png" stdout --psm 7 -l eng 2>/dev/null || true) | tr -d '[:space:]')
             if [[ "$ocr_rec" == *"$CYCLE_TOKEN"* ]]; then
                 break
             fi

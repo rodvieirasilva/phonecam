@@ -234,7 +234,7 @@ verify_phonecam_stream() {
 
     # Run Tesseract OCR on reversed frame
     local ocr_result
-    ocr_result=$(tesseract "$REVERSED_FRAME" stdout --psm 7 -l eng 2>/dev/null | tr -d '[:space:]')
+    ocr_result=$((tesseract "$REVERSED_FRAME" stdout --psm 7 -l eng 2>/dev/null || true) | tr -d '[:space:]')
 
     if [[ "$ocr_result" == *"$EXPECTED_TOKEN"* ]]; then
         echo "  [PASS] OCR verified token '$EXPECTED_TOKEN' (detected '$ocr_result')"
