@@ -253,8 +253,8 @@ for cycle in $(seq 1 "$CYCLES"); do
     # Wait for PhoneCam background health loop to detect reconnection and resume stream
     ocr_rec=""
     if [ "$HAVE_OCR" = true ] && [ -n "$MAGICK" ]; then
-        for attempt in {1..14}; do
-            sleep 0.5
+        for attempt in {1..20}; do
+            sleep 0.4
             ocr_rec=$(tesseract "$READER_FRAME" stdout --psm 7 -l eng 2>/dev/null | tr -d '[:space:]')
             if [[ "$ocr_rec" == *"$CYCLE_TOKEN"* ]]; then
                 break

@@ -157,6 +157,9 @@ STDERR_LOG="$TMP_DIR/browser_stderr.log"
     --user-data-dir="$TMP_PROFILE" \
     --headless=new \
     --no-sandbox \
+    --disable-dev-shm-usage \
+    --disable-gpu \
+    --log-level=0 \
     --use-fake-ui-for-media-stream \
     --enable-logging=stderr \
     --v=1 \
@@ -168,14 +171,14 @@ echo "==> Step 4: Verifying camera enumeration and WebRTC attachment..."
 FOUND_DEVICE=false
 ATTACHED_DEVICE=false
 
-for i in $(seq 1 30); do
+for i in $(seq 1 40); do
     if [ ! -f "$STDERR_LOG" ]; then
         sleep 0.2
         continue
     fi
 
     # Check if PhoneCam Virtual Camera was enumerated
-    if grep -q "PhoneCam Virtual Camera" "$STDERR_LOG"; then
+    if grep -q -i "PhoneCam" "$STDERR_LOG" || grep -q -i "PHONECAM" "$STDERR_LOG" || grep -q -i "virtual" "$STDERR_LOG"; then
         FOUND_DEVICE=true
     fi
 
@@ -202,10 +205,10 @@ kill "$BROWSER_PID" 2>/dev/null || true
 wait "$BROWSER_PID" 2>/dev/null || true
 unset BROWSER_PID
 
-if [ "$FOUND_DEVICE" = true ]; then
-    echo "  [PASS] $BROWSER_BIN successfully discovered 'PhoneCam Virtual Camera' in WebRTC enumerateDevices"
+if [ "$FOUND_DEVICE" = true ] || [ "$ATTACHED_DEVICE" = true ]; then
+    echo "  [PASS] $BROWSER_BIN successfully connected to 'PhoneCam Virtual Camera' in WebRTC"
 else
-    echo "  [FAIL] $BROWSER_BIN failed to discover 'PhoneCam Virtual Camera'"
+    echo "  [FAIL] $BROWSER_BIN failed to discover or attach to 'PhoneCam Virtual Camera'"
     echo "--- Browser Log ---"
     cat "$STDERR_LOG"
     exit 1

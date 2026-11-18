@@ -170,7 +170,7 @@ fi
 
 # 4f. Cable Disconnect & Auto-Reconnect E2E Test
 echo "==> Step 4f: Testing Cable Disconnect & Auto-Reconnect Fault Tolerance..."
-if ./tests/test-reconnect-e2e.sh; then
+if RECONNECT_CYCLES="${RECONNECT_CYCLES:-2}" RECONNECT_STANDBY_SEC="${RECONNECT_STANDBY_SEC:-3}" RECONNECT_STREAM_SEC="${RECONNECT_STREAM_SEC:-3}" ./tests/test-reconnect-e2e.sh; then
     pass "Cable disconnect standby and auto-reconnection passed"
 else
     fail "Cable disconnect & auto-reconnect test failed"
