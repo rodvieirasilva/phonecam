@@ -75,9 +75,8 @@ graph LR
   - **4:3 Standard Crop**: Traditional video call framing (`--camera-ar=4:3`).
   - **1:1 Square (Avatar)**: Square crop for social media and avatar streams (`--camera-ar=1:1`).
   - **Custom Center Cut**: Pixel-perfect centering (`--crop=1920:1080:0:0`).
-- **Dynamic Theme Switching**:
-  - Six instant palette presets: **Cyber Cyan** (`#00F2FE`), **Cyber Emerald** (`#10B981`), **Sky Blue** (`#38BDF8`), **Neon Violet** (`#A855F7`), **Sunset Orange** (`#F97316`), and **Rose Pink** (`#F43F5E`).
-  - Reads live desktop theme from `~/.local/state/omarchy/current/theme/colors.toml`.
+- **Omarchy Theme Synchronization**:
+  - Automatically synchronizes with your Omarchy dark theme and live accent color from `~/.local/state/omarchy/current/theme/colors.toml`.
 - **Live Desktop Preview**:
   - Click the **Preview** button or toggle to view a real-time on-screen monitor window while streaming to `/dev/video10`.
 - **One-Time Root Setup (Zero Root Runtime)**:
@@ -89,8 +88,6 @@ graph LR
   - **Color Invert (Negative)**: Real-time hardware ffmpeg negative filter.
 - **Mathematically Aligned TUI Dashboard**:
   - Crossterm-powered terminal interface formatted with dynamic width padding to ensure consistent 68-character borders, live connection parameters, battery readout, and instantaneous any-key auto-detachment.
-- **Integrated Version Display**:
-  - Live version indicator (`v0.2.2`) prominently displayed in the GTK4 window title, Adwaita header subtitle, and TUI top banner.
 
 ---
 

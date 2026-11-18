@@ -186,13 +186,20 @@ verify_phonecam_stream() {
     echo "    Command: $PHONECAM_BIN ${phonecam_args[*]}"
 
     fuser -k /dev/video10 2>/dev/null || true
+    sleep 0.3
 
+    if [ ! -c /dev/video10 ]; then
+        sudo -n modprobe v4l2loopback video_nr=10 card_label="PhoneCam Virtual Camera" exclusive_caps=1 2>/dev/null || true
+        sudo -n chmod 666 /dev/video10 2>/dev/null || true
+    fi
+
+    local log_file="$TMP_DIR/phonecam_${test_name// /_}.log"
     # Launch PhoneCam in background
-    "$PHONECAM_BIN" "${phonecam_args[@]}" >/dev/null 2>&1 &
+    "$PHONECAM_BIN" "${phonecam_args[@]}" > "$log_file" 2>&1 &
     local pc_pid=$!
 
     # Allow stream to initialize and fill v4l2 buffer
-    sleep 1.5
+    sleep 2.0
 
     local captured=false
     for _ in {1..20}; do
@@ -213,6 +220,8 @@ verify_phonecam_stream() {
 
     if [ "$captured" != true ] || [ ! -f "$CAPTURED_FRAME" ] || [ ! -s "$CAPTURED_FRAME" ]; then
         echo "  [FAIL] Frame capture from /dev/video10 failed (empty or missing frame)"
+        echo "--- PhoneCam Log ---"
+        cat "$log_file" 2>/dev/null || true
         return 1
     fi
 
