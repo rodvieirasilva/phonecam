@@ -21,14 +21,12 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo sed -i "s/#\$nrconf{restart} = 'i';/\$nrconf{restart} = 'a';/g" /etc/needrestart/needrestart.conf 2>/dev/null || true
-          echo '$nrconf{restart} = "a";' | sudo tee /etc/needrestart/conf.d/50-autorestart.conf 2>/dev/null || true
-          sudo DEBIAN_FRONTEND=noninteractive apt-get update
+          sudo sed -i 's|http://.*archive.ubuntu.com|http://azure.archive.ubuntu.com|g' /etc/apt/sources.list /etc/apt/sources.list.d/* 2>/dev/null || true
+          sudo DEBIAN_FRONTEND=noninteractive apt-get update -o Acquire::Retries=3
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
-            -o DPkg::Options::="--force-confdef" -o DPkg::Options::="--force-confold" \
-            libgtk-4-dev libadwaita-1-dev qml6-module-qtquick qml6-module-qtquick-controls \
-            qml6-module-qttest qt6-declarative-dev qt6-declarative-dev-tools libv4l-dev ffmpeg \
-            desktop-file-utils imagemagick tesseract-ocr tesseract-ocr-eng v4l2loopback-dkms
+            -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
+            libgtk-4-dev libadwaita-1-dev libv4l-dev ffmpeg desktop-file-utils \
+            imagemagick tesseract-ocr tesseract-ocr-eng v4l2loopback-dkms
           sudo modprobe v4l2loopback video_nr=10 card_label="PhoneCam Virtual Camera" exclusive_caps=1 || true
           sudo chmod 666 /dev/video10 2>/dev/null || true
           echo "$USER ALL=(ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/phonecam-ci
