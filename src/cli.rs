@@ -1,13 +1,16 @@
-use clap::Parser;
+use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug, Clone, PartialEq, Eq)]
 #[command(
     name = "phonecam",
     author = "Rodrigo Vieira",
-    version = "0.2.0",
+    version = env!("CARGO_PKG_VERSION"),
     about = "High-performance smartphone webcam virtual device manager for Omarchy"
 )]
 pub struct Cli {
+    #[command(subcommand)]
+    pub command: Option<Commands>,
+
     /// Launch the GTK4 / Libadwaita desktop user interface (default)
     #[arg(long)]
     pub gui: bool,
@@ -99,4 +102,20 @@ pub struct Cli {
     /// Internal HTTP API server port
     #[arg(long, default_value_t = 41789)]
     pub port: u16,
+}
+
+#[derive(Subcommand, Debug, Clone, PartialEq, Eq)]
+pub enum Commands {
+    /// Install PhoneCam binary, desktop launcher, icons, and configuration
+    Install {
+        /// Install only for the current user without system root configuration
+        #[arg(long)]
+        user: bool,
+    },
+    /// Uninstall PhoneCam and clean up system and user files
+    Uninstall {
+        /// Uninstall only user files without modifying system directories
+        #[arg(long)]
+        user: bool,
+    },
 }

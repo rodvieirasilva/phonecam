@@ -75,8 +75,8 @@ tesseract assets/screenshot-tui.png stdout
 Verify local build and system installation before tagging:
 
 ```bash
-# Run local installer
-./scripts/install.sh
+# Run native installer (matches SoundThis pattern)
+phonecam install      # or: mise run install (or: cargo run --release -- install)
 
 # Test binary version
 phonecam --version

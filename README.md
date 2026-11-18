@@ -121,8 +121,8 @@ curl -LO https://github.com/omacom/phonecam/releases/download/v0.2.0/phonecam-v0
 tar -xzf phonecam-v0.2.0-x86_64-linux.tar.gz
 cd phonecam-v0.2.0-x86_64-linux
 
-# 3. Run installer
-./scripts/install.sh
+# 3. Run native installer (same architecture as SoundThis)
+./phonecam install
 ```
 
 ### Option 2: Build & Install with mise (Tool Manager)
@@ -136,7 +136,7 @@ mise run install
 ### Option 3: Build & Install from Source (Cargo)
 ```bash
 cd ~/dev/phonecam
-./scripts/install.sh
+cargo run --release -- install
 ```
 
 ### Option 4: Arch Linux Package (PKGBUILD)
@@ -145,11 +145,16 @@ cd ~/dev/phonecam/pkgbuild
 makepkg -si
 ```
 
-The installer:
+The native installer:
 1. Installs the optimized binary into `/usr/local/bin/phonecam` and `~/.local/bin/phonecam`.
 2. Registers the desktop launcher (`phonecam.desktop`) and scalable application icons.
 3. Configures one-time non-root device permissions (`/etc/sudoers.d/phonecam-v4l2loopback`).
 4. Registers the shortcut in the **Omarchy Menu** (`Super + Space` -> search `PhoneCam` or `webcam`).
+
+To cleanly uninstall at any time:
+```bash
+phonecam uninstall   # or: mise run uninstall
+```
 
 ---
 

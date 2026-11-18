@@ -46,7 +46,11 @@ run = "./tests/test-package-e2e.sh"
 
 [tasks.install]
 description = "Install PhoneCam binary, desktop entry, and icons locally"
-run = "./scripts/install.sh"
+run = "cargo run --release -- install"
+
+[tasks.uninstall]
+description = "Uninstall PhoneCam and clean up system/user files"
+run = "cargo run --release -- uninstall"
 
 [tasks.screenshot]
 description = "Capture live GUI and TUI screenshots in Hyprland"

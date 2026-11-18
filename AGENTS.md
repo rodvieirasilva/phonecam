@@ -195,8 +195,11 @@ phonecam --status
 
 ### System Installation & Packaging
 ```bash
-# Run installer via mise (installs binary, desktop file, icon, sudoers rule, omarchy menu)
-mise run install      # or: ./scripts/install.sh
+# Run native installer via mise or direct binary (same pattern as SoundThis)
+mise run install      # or: phonecam install (or: cargo run -- install)
+
+# Run uninstaller
+mise run uninstall    # or: phonecam uninstall
 
 # Verify Arch PKGBUILD
 cd pkgbuild && makepkg -fsi

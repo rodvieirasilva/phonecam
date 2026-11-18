@@ -23,6 +23,20 @@ async fn main() -> Result<()> {
 
     let cli = Cli::parse();
 
+    // Subcommands: install / uninstall
+    if let Some(cmd) = cli.command {
+        match cmd {
+            phonecam::cli::Commands::Install { user } => {
+                phonecam::installer::Installer::install(!user)?;
+                return Ok(());
+            }
+            phonecam::cli::Commands::Uninstall { user } => {
+                phonecam::installer::Installer::uninstall(!user)?;
+                return Ok(());
+            }
+        }
+    }
+
     // 0. Wi-Fi ADB Connect & TCP/IP Actions
     if let Some(ref addr) = cli.wifi {
         println!("Connecting to phone via ADB Wi-Fi at {}...", addr);

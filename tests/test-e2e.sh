@@ -31,6 +31,18 @@ else
     fail "CLI --help failed"
 fi
 
+if cargo run -- install --help >/dev/null 2>&1; then
+    pass "CLI install --help executed successfully"
+else
+    fail "CLI install --help failed"
+fi
+
+if cargo run -- uninstall --help >/dev/null 2>&1; then
+    pass "CLI uninstall --help executed successfully"
+else
+    fail "CLI uninstall --help failed"
+fi
+
 VERSION_OUT=$(cargo run -- --version 2>/dev/null || true)
 EXPECTED_VER=$(grep '^version =' Cargo.toml | head -n1 | cut -d'"' -f2)
 if echo "$VERSION_OUT" | grep -q "phonecam $EXPECTED_VER"; then
@@ -165,11 +177,13 @@ REQUIRED_FILES=(
     "scripts/capture-screenshot.sh"
     "src/lib.rs"
     "src/main.rs"
+    "src/installer.rs"
     "src/instance.rs"
     "src/ui/mod.rs"
     "src/ui/gtk_app.rs"
     "src/ui/theme.css"
     "src/ui/Main.qml"
+    "tests/installer_tests.rs"
     "tests/instance_tests.rs"
     "tests/ui_test.rs"
     "tests/test-tui-e2e.sh"

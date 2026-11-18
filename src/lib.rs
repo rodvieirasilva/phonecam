@@ -1,6 +1,7 @@
 pub mod adb;
 pub mod cli;
 pub mod config;
+pub mod installer;
 pub mod instance;
 pub mod pipeline;
 pub mod server;

@@ -93,3 +93,29 @@ fn test_cli_action_flags() {
     let cli_tcpip = Cli::try_parse_from(["phonecam", "--tcpip"]).unwrap();
     assert_eq!(cli_tcpip.tcpip, Some(None));
 }
+
+#[test]
+fn test_cli_subcommands() {
+    use phonecam::cli::Commands;
+
+    let cli_install = Cli::try_parse_from(["phonecam", "install"]).unwrap();
+    assert_eq!(cli_install.command, Some(Commands::Install { user: false }));
+
+    let cli_install_user = Cli::try_parse_from(["phonecam", "install", "--user"]).unwrap();
+    assert_eq!(
+        cli_install_user.command,
+        Some(Commands::Install { user: true })
+    );
+
+    let cli_uninstall = Cli::try_parse_from(["phonecam", "uninstall"]).unwrap();
+    assert_eq!(
+        cli_uninstall.command,
+        Some(Commands::Uninstall { user: false })
+    );
+
+    let cli_uninstall_user = Cli::try_parse_from(["phonecam", "uninstall", "--user"]).unwrap();
+    assert_eq!(
+        cli_uninstall_user.command,
+        Some(Commands::Uninstall { user: true })
+    );
+}
