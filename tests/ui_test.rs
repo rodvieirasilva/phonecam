@@ -144,6 +144,12 @@ async fn test_gtk_ui_widget_tree_and_interactions() {
 
     // Build GTK4 UI Window
     let window = build_ui_window(None, port);
+    assert!(
+        window
+            .title()
+            .unwrap()
+            .contains(&format!("v{}", env!("CARGO_PKG_VERSION")))
+    );
     let root = window.upcast_ref::<gtk4::Widget>();
 
     // 1. Verify existence of all testIDs / widget names

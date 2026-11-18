@@ -1,6 +1,6 @@
 [package]
 name = "phonecam"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 authors = ["Rodrigo Vieira <rodvieirasilva@gmail.com>"]
 description = "High-performance smartphone webcam virtual device manager for Omarchy Linux"

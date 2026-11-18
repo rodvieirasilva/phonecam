@@ -27,7 +27,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libv4l-dev
+          sudo apt-get install -y libv4l-dev libgtk-4-dev libadwaita-1-dev
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -42,10 +42,11 @@ jobs:
           
           mkdir -p dist/package/ui
           cp target/release/phonecam dist/package/
-          cp -r ui dist/package/
+          cp -f src/ui/Main.qml dist/package/ui/
           cp -r assets dist/package/
           cp -r pkgbuild dist/package/
           cp -r scripts dist/package/
+          cp config.example.toml dist/package/
           cp README.md dist/package/
           cp AGENTS.md dist/package/
           cp LICENSE dist/package/

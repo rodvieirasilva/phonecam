@@ -5,6 +5,13 @@
 <h1 align="center">PhoneCam</h1>
 
 <p align="center">
+  <a href="https://github.com/omacom/phonecam/releases"><img src="https://img.shields.io/badge/version-v0.2.0-blue.svg?style=flat-square" alt="Version v0.2.0"></a>
+  <img src="https://img.shields.io/badge/Rust-2024_Edition-orange.svg?style=flat-square" alt="Rust 2024">
+  <img src="https://img.shields.io/badge/Platform-Omarchy_Linux-purple.svg?style=flat-square" alt="Omarchy Linux">
+  <img src="https://img.shields.io/badge/License-MIT-green.svg?style=flat-square" alt="MIT License">
+</p>
+
+<p align="center">
   <strong>High-performance smartphone webcam virtual device manager for Omarchy Linux and Arch Linux.</strong><br>
   Built natively in <strong>Rust</strong> with an <strong>Omarchy-styled GTK4 / Libadwaita UI</strong>, leveraging <code>scrcpy</code> and <code>v4l2loopback</code> for zero-latency, studio-quality camera streaming directly into <code>/dev/video10</code>.
 </p>
@@ -43,6 +50,14 @@ graph LR
 
 ## Key Features
 
+- **Single-Instance Exclusion**:
+  - Linux kernel `flock`-backed mutual exclusion (`$XDG_RUNTIME_DIR/phonecam.lock`) prevents multiple instances from corrupting the virtual video device or colliding on IPC ports.
+  - Secondary invocations automatically bring the running window into focus on Hyprland and exit cleanly with code 1.
+- **Rigorous Clean Hardware Teardown**:
+  - Guaranteed clean hardware release across all termination paths (`SIGINT`, `SIGTERM`, `SIGHUP`, window close, TUI exit).
+  - Detaches `/dev/video10`, terminates streaming subprocesses (`scrcpy`, `ffmpeg`, `mpv`), and eliminates duplicate virtual devices upon relaunch.
+- **Lean Memory & CPU Footprint**:
+  - Tested continuously in CI: RSS memory < 25 MB (under 50 MB threshold), 0 KB memory drift, CPU utilization < 2% (under 35% threshold).
 - **Wireless ADB over Wi-Fi & Fault-Tolerant Reconnection**:
   - Connect wirelessly to smartphones on your local network (`IP:PORT` or `IP:5555`).
   - One-click **Enable USB TCP/IP** button switches a USB-connected phone to port 5555 before unplugging the cable.
@@ -72,8 +87,10 @@ graph LR
   - **Horizontal Mirror**: Natural webcam selfie orientation.
   - **Vertical Flip (180°)**: Correct upside-down tripod mountings.
   - **Color Invert (Negative)**: Real-time hardware ffmpeg negative filter.
-- **Auto-Detaching & Clean Teardown**:
-  - Pressing **ANY KEY** in the terminal dashboard or closing the GUI instantly terminates `scrcpy` and cleanly unloads `/dev/video10`.
+- **Mathematically Aligned TUI Dashboard**:
+  - Crossterm-powered terminal interface formatted with dynamic width padding to ensure consistent 68-character borders, live connection parameters, battery readout, and instantaneous any-key auto-detachment.
+- **Integrated Version Display**:
+  - Live version indicator (`v0.2.0`) prominently displayed in the GTK4 window title, Adwaita header subtitle, and TUI top banner.
 
 ---
 
@@ -93,17 +110,46 @@ graph LR
 
 ## Installation & System Packaging
 
+### Option 1: Install from Downloaded Prebuilt Binary (Recommended)
+You can install PhoneCam directly without requiring Rust or Cargo:
+
+```bash
+# 1. Download release archive for your architecture (x86_64 or aarch64 / arm64)
+curl -LO https://github.com/omacom/phonecam/releases/download/v0.2.0/phonecam-v0.2.0-x86_64-linux.tar.gz
+
+# 2. Extract archive
+tar -xzf phonecam-v0.2.0-x86_64-linux.tar.gz
+cd phonecam-v0.2.0-x86_64-linux
+
+# 3. Run installer
+./scripts/install.sh
+```
+
+### Option 2: Build & Install with mise (Tool Manager)
+If you use [mise](https://mise.jdx.dev):
+
+```bash
+cd ~/dev/phonecam
+mise run install
+```
+
+### Option 3: Build & Install from Source (Cargo)
 ```bash
 cd ~/dev/phonecam
 ./scripts/install.sh
 ```
 
-The script:
-1. Compiles the optimized release binary (`cargo build --release`).
-2. Installs `/usr/local/bin/phonecam` and `~/.local/bin/phonecam`.
-3. Registers `.desktop` launcher and scalable vector icons.
-4. Configures one-time root permissions (`modules-load.d`, `modprobe.d`, `udev`, and `sudoers`).
-5. Configures the **Omarchy Menu** (`Super + Space` -> search `PhoneCam` or `webcam`).
+### Option 4: Arch Linux Package (PKGBUILD)
+```bash
+cd ~/dev/phonecam/pkgbuild
+makepkg -si
+```
+
+The installer:
+1. Installs the optimized binary into `/usr/local/bin/phonecam` and `~/.local/bin/phonecam`.
+2. Registers the desktop launcher (`phonecam.desktop`) and scalable application icons.
+3. Configures one-time non-root device permissions (`/etc/sudoers.d/phonecam-v4l2loopback`).
+4. Registers the shortcut in the **Omarchy Menu** (`Super + Space` -> search `PhoneCam` or `webcam`).
 
 ---
 
@@ -188,11 +234,17 @@ auto_start = false
 
 ## Testing & Verification
 
-PhoneCam features an extensive automated test suite covering unit tests, integration tests, GTK4 widget interactions, TUI PTY sessions, and live video stream OCR verification:
+PhoneCam features an extensive automated test suite covering unit tests, integration tests, GTK4 widget interactions, TUI PTY sessions, live video stream OCR verification, and ARM64 cross-compilation:
 
 ```bash
+# Run formatting and strict clippy checks
+mise run check        # or: cargo fmt --check && cargo clippy --all-targets -- -D warnings
+
 # Run all unit and integration tests
-cargo test --all-targets
+mise run test         # or: cargo test --all-targets
+
+# Cross-compile optimized ARM64 (aarch64) release binary
+mise run build:arm64
 
 # Run Fake Phone E2E test suite (mocked ADB & hardware)
 cargo test --test fake_phone_e2e
@@ -201,19 +253,19 @@ cargo test --test fake_phone_e2e
 cargo test --test ui_test
 
 # Run Terminal TUI dashboard PTY & keypress E2E test
-./tests/test-tui-e2e.sh
+mise run test:tui     # or: ./tests/test-tui-e2e.sh
 
 # Run Video Stream Hardware OCR transformation verification
-./tests/test-ocr-e2e.sh
+mise run test:ocr     # or: ./tests/test-ocr-e2e.sh
 
 # Run Memory usage, CPU benchmarks, and clean teardown verification
-./tests/test-perf-e2e.sh
+mise run test:perf    # or: ./tests/test-perf-e2e.sh
 
 # Run complete UI test suite
-./tests/test-ui.sh
+mise run test:ui      # or: ./tests/test-ui.sh
 
 # Run complete package lifecycle verification
-./tests/test-package-e2e.sh
+mise run test:e2e     # or: ./tests/test-package-e2e.sh
 ```
 
 ### UI TestIDs (`widget_name` / `objectName`) Reference

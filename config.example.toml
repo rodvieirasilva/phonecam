@@ -49,3 +49,7 @@ auto_start = false
 
 # Serial number of the last connected device
 # last_device_serial = ""
+
+# Allow reading sudo password from ~/.credentials if present (default: false)
+# When false, PhoneCam uses passwordless sudo or native Omarchy desktop login window (polkit/pkexec)
+use_credentials_file = false

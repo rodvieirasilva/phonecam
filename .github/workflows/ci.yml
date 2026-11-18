@@ -43,8 +43,13 @@ jobs:
       - name: Rust Linter (Clippy)
         run: cargo clippy --all-targets -- -D warnings
 
-      - name: Build Release Binary
+      - name: Build Release Binary (x86_64)
         run: cargo build --release
+
+      - name: Build ARM64 Binary (aarch64)
+        run: |
+          rustup target add aarch64-unknown-linux-musl
+          RUSTFLAGS="-C linker=rust-lld" cargo build --target aarch64-unknown-linux-musl --release --no-default-features
 
       - name: Run Full Unit & Integration Test Suite
         run: cargo test --all-targets

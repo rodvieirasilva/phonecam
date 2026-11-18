@@ -33,6 +33,11 @@ Agents modifying or extending PhoneCam must adhere to the following core invaria
    - Never run the GUI or scrcpy as root.
 4. **Theme & Desktop Conformance**:
    - Always follow the Omarchy design guidelines: dark backgrounds (`#18181B`, `#27272A`), rounded corners (12px), and dynamic accent colors from `~/.local/state/omarchy/current/theme/colors.toml`.
+5. **Single-Instance Exclusion**:
+   - Only one PhoneCam process (`phonecam`, `--tui`, `--start`) may hold the hardware lock (`$XDG_RUNTIME_DIR/phonecam.lock`) at a time.
+   - Secondary attempts must fail cleanly with exit code 1 and activate the existing window.
+6. **Live Version Indicators**:
+   - Both GTK4 window title bar and TUI header dashboard must dynamically source their version string from `env!("CARGO_PKG_VERSION")`.
 
 ---
 
@@ -132,52 +137,66 @@ phonecam/
 
 ## 5. Development & Verification Commands
 
+PhoneCam supports both [mise](https://mise.jdx.dev) tasks and direct Cargo commands.
+
 ### Build & Check
 ```bash
-# Verify compilation without warnings
-cargo check
+# Verify formatting and strict linter
+mise run check        # or: cargo fmt --check && cargo clippy --all-targets -- -D warnings
 
 # Compile debug build
-cargo build
+mise run build        # or: cargo build
 
 # Compile optimized release binary
-cargo build --release
+mise run build:release # or: cargo build --release
+
+# Cross-compile optimized ARM64 (aarch64) release binary
+mise run build:arm64
 ```
 
 ### Run Automated Tests
 ```bash
 # Run all unit and integration tests
-cargo test --all-targets
+mise run test         # or: cargo test --all-targets
 
 # Run mock phone end-to-end suite
 cargo test --test fake_phone_e2e
 
+# Run camera video stream transformation OCR suite
+mise run test:ocr     # or: ./tests/test-ocr-e2e.sh
+
+# Run memory RSS, CPU, and clean teardown performance suite
+mise run test:perf    # or: ./tests/test-perf-e2e.sh
+
+# Run terminal TUI dashboard PTY & keypress E2E suite
+mise run test:tui     # or: ./tests/test-tui-e2e.sh
+
 # Run Qt Quick UI click simulation & testID suite (offscreen)
-./tests/test-ui.sh
+mise run test:ui      # or: ./tests/test-ui.sh
 
 # Run complete system E2E validation
-./tests/test-package-e2e.sh
+mise run test:e2e     # or: ./tests/test-package-e2e.sh
 ```
 
 ### Run Locally
 ```bash
 # Run GUI mode
-cargo run
+mise run gui          # or: cargo run
 
 # Run Terminal TUI dashboard
-cargo run -- --tui
+mise run tui          # or: cargo run -- --tui
 
 # Inspect phone cameras
-cargo run -- --list-cameras
+phonecam --list-cameras
 
 # Inspect status
-cargo run -- --status
+phonecam --status
 ```
 
 ### System Installation & Packaging
 ```bash
-# Run installer (installs binary, desktop file, icon, sudoers rule, omarchy menu)
-./scripts/install.sh
+# Run installer via mise (installs binary, desktop file, icon, sudoers rule, omarchy menu)
+mise run install      # or: ./scripts/install.sh
 
 # Verify Arch PKGBUILD
 cd pkgbuild && makepkg -fsi

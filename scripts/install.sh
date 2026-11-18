@@ -8,8 +8,19 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$SCRIPT_DIR"
 
-echo "==> Building PhoneCam (release mode)..."
-cargo build --release
+PHONECAM_SRC=""
+if [ -f "phonecam" ]; then
+    PHONECAM_SRC="phonecam"
+elif [ -f "target/release/phonecam" ]; then
+    PHONECAM_SRC="target/release/phonecam"
+elif command -v cargo >/dev/null 2>&1; then
+    echo "==> Building PhoneCam (release mode)..."
+    cargo build --release
+    PHONECAM_SRC="target/release/phonecam"
+else
+    echo "Error: PhoneCam binary not found and cargo is not installed."
+    exit 1
+fi
 
 # Determine target directories
 BIN_TARGET="/usr/local/bin/phonecam"
@@ -23,7 +34,13 @@ ICON_PNG_SYSTEM="/usr/share/icons/hicolor/512x512/apps/phonecam.png"
 USER_ICONS="$HOME/.local/share/icons/hicolor"
 
 SUDO_PASS=""
-if [[ -f "$HOME/.credentials" ]]; then
+# If config doesn't disable credentials, and ~/.credentials is provided, use it
+USE_CREDS="true"
+if grep -q "use_credentials_file = false" "$HOME/.config/phonecam/config.toml" 2>/dev/null; then
+    USE_CREDS="false"
+fi
+
+if [[ "$USE_CREDS" != "false" && -f "$HOME/.credentials" ]]; then
     # shellcheck disable=SC1090
     source "$HOME/.credentials"
     SUDO_PASS="${LINUX_PASSWORD:-}"
@@ -32,8 +49,12 @@ fi
 run_sudo() {
     if [[ $(id -u) -eq 0 ]]; then
         "$@"
+    elif sudo -n true 2>/dev/null; then
+        sudo "$@"
     elif [[ -n "$SUDO_PASS" ]]; then
         echo "$SUDO_PASS" | sudo -S "$@"
+    elif command -v pkexec >/dev/null 2>&1 && [ -n "${WAYLAND_DISPLAY:-${DISPLAY:-}}" ]; then
+        pkexec "$@"
     elif command -v run0 >/dev/null 2>&1; then
         run0 "$@"
     else
@@ -41,50 +62,66 @@ run_sudo() {
     fi
 }
 
+PHONECAM_SRC_ABS="$SCRIPT_DIR/$PHONECAM_SRC"
+QML_SRC_ABS="$SCRIPT_DIR/src/ui/Main.qml"
+if [ ! -f "$QML_SRC_ABS" ] && [ -f "$SCRIPT_DIR/ui/Main.qml" ]; then
+    QML_SRC_ABS="$SCRIPT_DIR/ui/Main.qml"
+fi
+CONFIG_EXAMPLE_ABS="$SCRIPT_DIR/config.example.toml"
+DESKTOP_SRC_ABS="$SCRIPT_DIR/pkgbuild/phonecam.desktop"
+SVG_SRC_ABS="$SCRIPT_DIR/assets/phonecam.svg"
+PNG_SRC_ABS="$SCRIPT_DIR/assets/phonecam.png"
+
 echo "==> Installing PhoneCam binary..."
 mkdir -p "$(dirname "$USER_BIN")"
-cp -f "target/release/phonecam" "$USER_BIN"
+cp -f "$PHONECAM_SRC_ABS" "$USER_BIN"
 chmod +x "$USER_BIN"
 
-if run_sudo install -Dm755 "target/release/phonecam" "$BIN_TARGET" 2>/dev/null; then
+if run_sudo install -Dm755 "$PHONECAM_SRC_ABS" "$BIN_TARGET" 2>/dev/null; then
     echo "  Installed system-wide: $BIN_TARGET"
 fi
 
 echo "==> Installing UI and resources..."
 mkdir -p "$USER_SHARE/ui"
-cp -f "src/ui/Main.qml" "$USER_SHARE/ui/Main.qml"
+if [ -f "$QML_SRC_ABS" ]; then
+    cp -f "$QML_SRC_ABS" "$USER_SHARE/ui/Main.qml"
+fi
 
 if run_sudo mkdir -p "$SHARE_TARGET/ui" 2>/dev/null; then
-    run_sudo cp -f "src/ui/Main.qml" "$SHARE_TARGET/ui/Main.qml"
-    run_sudo cp -f "config.example.toml" "$SHARE_TARGET/config.example.toml"
+    if [ -f "$QML_SRC_ABS" ]; then
+        run_sudo cp -f "$QML_SRC_ABS" "$SHARE_TARGET/ui/Main.qml"
+    fi
+    if [ -f "$CONFIG_EXAMPLE_ABS" ]; then
+        run_sudo cp -f "$CONFIG_EXAMPLE_ABS" "$SHARE_TARGET/config.example.toml"
+    fi
 fi
 
 echo "==> Installing configuration template..."
 mkdir -p "$HOME/.config/phonecam"
-cp -f "config.example.toml" "$HOME/.config/phonecam/config.example.toml"
+cp -f "$CONFIG_EXAMPLE_ABS" "$HOME/.config/phonecam/config.example.toml"
 if [[ ! -f "$HOME/.config/phonecam/config.toml" ]]; then
-    cp -f "config.example.toml" "$HOME/.config/phonecam/config.toml"
+    cp -f "$CONFIG_EXAMPLE_ABS" "$HOME/.config/phonecam/config.toml"
 fi
 
 echo "==> Installing Desktop Launcher..."
-if run_sudo cp -f "pkgbuild/phonecam.desktop" "$DESKTOP_TARGET" 2>/dev/null; then
+if run_sudo cp -f "$DESKTOP_SRC_ABS" "$DESKTOP_TARGET" 2>/dev/null; then
     echo "  Installed desktop entry: $DESKTOP_TARGET"
     # Remove user-level desktop file if system-level exists to avoid duplicate menu entries
     rm -f "$USER_DESKTOP"
 else
     mkdir -p "$(dirname "$USER_DESKTOP")"
-    cp -f "pkgbuild/phonecam.desktop" "$USER_DESKTOP"
+    cp -f "$DESKTOP_SRC_ABS" "$USER_DESKTOP"
     echo "  Installed desktop entry: $USER_DESKTOP"
 fi
 
 echo "==> Installing Icons..."
 mkdir -p "$USER_ICONS/scalable/apps" "$USER_ICONS/512x512/apps"
-cp -f "assets/phonecam.svg" "$USER_ICONS/scalable/apps/phonecam.svg"
-cp -f "assets/phonecam.png" "$USER_ICONS/512x512/apps/phonecam.png"
+cp -f "$SVG_SRC_ABS" "$USER_ICONS/scalable/apps/phonecam.svg"
+cp -f "$PNG_SRC_ABS" "$USER_ICONS/512x512/apps/phonecam.png"
 
 if run_sudo mkdir -p "$(dirname "$ICON_SVG_SYSTEM")" "$(dirname "$ICON_PNG_SYSTEM")" 2>/dev/null; then
-    run_sudo cp -f "assets/phonecam.svg" "$ICON_SVG_SYSTEM"
-    run_sudo cp -f "assets/phonecam.png" "$ICON_PNG_SYSTEM"
+    run_sudo cp -f "$SVG_SRC_ABS" "$ICON_SVG_SYSTEM"
+    run_sudo cp -f "$PNG_SRC_ABS" "$ICON_PNG_SYSTEM"
 fi
 
 # Update icon cache if tool exists

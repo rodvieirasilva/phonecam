@@ -4,7 +4,7 @@ use clap::Parser;
 #[command(
     name = "phonecam",
     author = "Rodrigo Vieira",
-    version = "0.1.0",
+    version = "0.2.0",
     about = "High-performance smartphone webcam virtual device manager for Omarchy"
 )]
 pub struct Cli {

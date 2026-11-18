@@ -104,6 +104,8 @@ pub struct UserStateConfig {
     pub auto_start: bool,
     #[serde(default)]
     pub last_device_serial: Option<String>,
+    #[serde(default)]
+    pub use_credentials_file: bool,
 }
 
 fn default_last_ip() -> String {
@@ -134,6 +136,7 @@ impl Default for UserStateConfig {
             preview: false,
             auto_start: false,
             last_device_serial: None,
+            use_credentials_file: false,
         }
     }
 }

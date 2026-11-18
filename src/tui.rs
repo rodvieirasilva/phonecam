@@ -161,7 +161,8 @@ pub fn format_dashboard(dev: &crate::adb::DeviceInfo, cfg: &AppConfig) -> Vec<St
     let border_mid = format!("╠{}╣", "═".repeat(CONTENT_WIDTH + 2));
     let border_bot = format!("╚{}╝", "═".repeat(CONTENT_WIDTH + 2));
 
-    let title = "PHONECAM VIRTUAL WEBCAM";
+    let version = env!("CARGO_PKG_VERSION");
+    let title = format!("PHONECAM VIRTUAL WEBCAM v{version}");
     let title_pad = CONTENT_WIDTH.saturating_sub(title.len()) / 2;
     let centered_title = format!(
         "{:left_pad$}{}{:right_pad$}",

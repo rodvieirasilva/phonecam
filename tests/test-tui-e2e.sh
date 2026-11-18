@@ -123,6 +123,10 @@ if "PHONECAM VIRTUAL WEBCAM" not in out_text:
     print("Output received:\n", out_text, file=sys.stderr)
     sys.exit(1)
 
+if "v0.2.0" not in out_text and "v" not in out_text:
+    print("[FAIL] Missing version in TUI banner output", file=sys.stderr)
+    sys.exit(1)
+
 # Verify no bash or printf syntax errors in terminal output
 for forbidden in ["bash: line", "printf:", "invalid format"]:
     if forbidden in out_text:

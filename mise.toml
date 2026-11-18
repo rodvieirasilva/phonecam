@@ -1,0 +1,61 @@
+# PhoneCam mise configuration (https://mise.jdx.dev)
+
+[tasks.build]
+description = "Compile debug binary"
+run = "cargo build"
+
+[tasks."build:release"]
+description = "Compile optimized release binary"
+run = "cargo build --release"
+
+[tasks."build:arm64"]
+description = "Cross-compile optimized ARM64 Linux binary"
+run = 'RUSTFLAGS="-C linker=rust-lld" cargo build --target aarch64-unknown-linux-musl --release --no-default-features'
+
+[tasks.check]
+description = "Run formatting and strict clippy checks"
+run = "cargo fmt --check && cargo clippy --all-targets -- -D warnings"
+
+[tasks.fmt]
+description = "Format all Rust code"
+run = "cargo fmt"
+
+[tasks.test]
+description = "Run all unit and integration tests"
+run = "cargo test --all-targets"
+
+[tasks."test:ocr"]
+description = "Run camera stream transformations OCR verification"
+run = "./tests/test-ocr-e2e.sh"
+
+[tasks."test:perf"]
+description = "Run performance, memory (RSS), CPU, and clean teardown benchmarks"
+run = "./tests/test-perf-e2e.sh"
+
+[tasks."test:tui"]
+description = "Run terminal TUI dashboard PTY & keypress E2E test"
+run = "./tests/test-tui-e2e.sh"
+
+[tasks."test:ui"]
+description = "Run GTK4 & Qt Quick UI click simulation and testID test suite"
+run = "./tests/test-ui.sh"
+
+[tasks."test:e2e"]
+description = "Run full system package and repository lifecycle verification"
+run = "./tests/test-package-e2e.sh"
+
+[tasks.install]
+description = "Install PhoneCam binary, desktop entry, and icons locally"
+run = "./scripts/install.sh"
+
+[tasks.screenshot]
+description = "Capture live GUI and TUI screenshots in Hyprland"
+run = "./scripts/capture-screenshot.sh"
+
+[tasks.gui]
+description = "Launch PhoneCam desktop GUI"
+run = "cargo run --"
+
+[tasks.tui]
+description = "Launch PhoneCam terminal TUI dashboard"
+run = "cargo run -- --tui"

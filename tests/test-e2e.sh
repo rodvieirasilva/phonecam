@@ -32,10 +32,11 @@ else
 fi
 
 VERSION_OUT=$(cargo run -- --version 2>/dev/null || true)
-if echo "$VERSION_OUT" | grep -q "phonecam 0.1.0"; then
-    pass "CLI --version reports 'phonecam 0.1.0'"
+EXPECTED_VER=$(grep '^version =' Cargo.toml | head -n1 | cut -d'"' -f2)
+if echo "$VERSION_OUT" | grep -q "phonecam $EXPECTED_VER"; then
+    pass "CLI --version reports 'phonecam $EXPECTED_VER'"
 else
-    fail "CLI --version mismatch: $VERSION_OUT"
+    fail "CLI --version mismatch: $VERSION_OUT (expected 'phonecam $EXPECTED_VER')"
 fi
 
 STATUS_OUT=$(cargo run -- --status 2>/dev/null || true)
@@ -155,6 +156,8 @@ REQUIRED_FILES=(
     "README.md"
     "AGENTS.md"
     "config.example.toml"
+    "mise.toml"
+    "docs/release-process.md"
     "pkgbuild/PKGBUILD"
     "pkgbuild/phonecam.desktop"
     "scripts/install.sh"

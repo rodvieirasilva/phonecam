@@ -12,8 +12,13 @@ fn dirs_home() -> Option<PathBuf> {
     std::env::var_os("HOME").map(PathBuf::from)
 }
 
-/// Reads the user's LINUX_PASSWORD from ~/.credentials if it exists.
+/// Reads the user's LINUX_PASSWORD from ~/.credentials if it exists and is enabled in config.
 pub fn get_sudo_password() -> Option<String> {
+    let cfg = crate::config::UserStateConfig::load();
+    if !cfg.use_credentials_file {
+        return None;
+    }
+
     let cred_path = home_dir().join(".credentials");
     if let Ok(content) = fs::read_to_string(&cred_path) {
         for line in content.lines() {
@@ -33,10 +38,14 @@ pub fn get_sudo_password() -> Option<String> {
     None
 }
 
-/// Executes a command with elevated privileges using passwordless sudo,
-/// the password from ~/.credentials, or run0 as fallback.
+/// Executes a command with elevated privileges using:
+/// 1. Direct execution if already root (euid == 0)
+/// 2. Passwordless sudo (`sudo -n`) - fastest, zero prompts when installed via sudoers
+/// 3. Native Omarchy desktop polkit prompt (`pkexec`)
+/// 4. Optional ~/.credentials fallback (if enabled by config)
+/// 5. Fallback to `run0` or interactive `sudo`
 pub fn run_elevated(cmd: &str, args: &[&str]) -> Result<String> {
-    // If we are already root
+    // 1. If we are already root
     if unsafe { libc::geteuid() } == 0 {
         let output = Command::new(cmd)
             .args(args)
@@ -50,7 +59,7 @@ pub fn run_elevated(cmd: &str, args: &[&str]) -> Result<String> {
         }
     }
 
-    // Try passwordless sudo directly for this exact command
+    // 2. Try passwordless sudo directly for this exact command
     let nopasswd_sudo = Command::new("sudo").arg("-n").arg(cmd).args(args).output();
 
     if let Ok(res) = nopasswd_sudo
@@ -59,7 +68,16 @@ pub fn run_elevated(cmd: &str, args: &[&str]) -> Result<String> {
         return Ok(String::from_utf8_lossy(&res.stdout).to_string());
     }
 
-    // Try sudo with credentials password
+    // 3. Try native Omarchy graphical authentication window via pkexec if available
+    if which::which("pkexec").is_ok()
+        && (std::env::var_os("WAYLAND_DISPLAY").is_some() || std::env::var_os("DISPLAY").is_some())
+        && let Ok(output) = Command::new("pkexec").arg(cmd).args(args).output()
+        && output.status.success()
+    {
+        return Ok(String::from_utf8_lossy(&output.stdout).to_string());
+    }
+
+    // 4. Try sudo with credentials password ONLY IF explicitly enabled
     if let Some(pass) = get_sudo_password() {
         use std::io::Write;
         let mut child = Command::new("sudo")
@@ -88,7 +106,7 @@ pub fn run_elevated(cmd: &str, args: &[&str]) -> Result<String> {
         }
     }
 
-    // Fallback to run0 if available
+    // 5. Fallback to run0 if available
     if which::which("run0").is_ok() {
         let output = Command::new("run0")
             .arg(cmd)
@@ -98,6 +116,13 @@ pub fn run_elevated(cmd: &str, args: &[&str]) -> Result<String> {
         if output.status.success() {
             return Ok(String::from_utf8_lossy(&output.stdout).to_string());
         }
+    }
+
+    // 6. Interactive sudo (terminal fallback)
+    if let Ok(res) = Command::new("sudo").arg(cmd).args(args).output()
+        && res.status.success()
+    {
+        return Ok(String::from_utf8_lossy(&res.stdout).to_string());
     }
 
     anyhow::bail!(

@@ -179,8 +179,10 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
     let user_cfg = Rc::new(RefCell::new(UserStateConfig::load()));
     let initial_cfg = user_cfg.borrow().clone();
 
+    let version = env!("CARGO_PKG_VERSION");
+    let window_title = format!("PhoneCam v{} — Smartphone Virtual Webcam", version);
     let mut builder = adw::ApplicationWindow::builder()
-        .title("PhoneCam — Smartphone Virtual Webcam")
+        .title(&window_title)
         .icon_name("phonecam")
         .default_width(560)
         .default_height(780);
@@ -191,7 +193,10 @@ pub fn build_ui_window(app: Option<&adw::Application>, port: u16) -> adw::Applic
     window.set_widget_name("window-main");
 
     let header = adw::HeaderBar::new();
-    let title = adw::WindowTitle::new("PhoneCam", "Studio Smartphone Webcam for Omarchy");
+    let title = adw::WindowTitle::new(
+        &format!("PhoneCam v{}", version),
+        "Studio Smartphone Webcam for Omarchy",
+    );
     header.set_title_widget(Some(&title));
 
     let refresh_btn = gtk4::Button::builder()
