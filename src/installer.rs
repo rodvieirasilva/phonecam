@@ -247,13 +247,14 @@ update-desktop-database /usr/share/applications 2>/dev/null || true
 
 mkdir -p /etc/modules-load.d /etc/modprobe.d /etc/udev/rules.d /etc/sudoers.d
 echo "v4l2loopback" > /etc/modules-load.d/v4l2loopback.conf
-echo 'options v4l2loopback devices=1 video_nr=10 card_label="PhoneCam Virtual Camera" exclusive_caps=0 max_buffers=2' > /etc/modprobe.d/v4l2loopback.conf
+echo 'options v4l2loopback devices=1 video_nr=10 card_label="PhoneCam Virtual Camera" exclusive_caps=1 max_buffers=2' > /etc/modprobe.d/v4l2loopback.conf
 cat << 'EOF' > /etc/udev/rules.d/99-v4l2loopback.rules
 KERNEL=="video*", SUBSYSTEM=="video4linux", ATTR{{name}}=="PhoneCam*", MODE="0666", GROUP="video"
 KERNEL=="video10", MODE="0666", GROUP="video"
 EOF
 udevadm control --reload-rules 2>/dev/null || true
 udevadm trigger 2>/dev/null || true
+usermod -aG video "{current_user}" 2>/dev/null || true
 
 cat << 'EOF' > /etc/sudoers.d/phonecam-v4l2loopback
 {current_user} ALL=(ALL) NOPASSWD: /usr/bin/modprobe v4l2loopback

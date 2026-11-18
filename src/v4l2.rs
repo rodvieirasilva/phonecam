@@ -70,7 +70,7 @@ pub fn setup_loopback_device(video_nr: u32, card_label: &str) -> Result<PathBuf>
             "devices=1",
             &nr_arg,
             &label_arg,
-            "exclusive_caps=0",
+            "exclusive_caps=1",
             "max_buffers=2",
         ],
     )
