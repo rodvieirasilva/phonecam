@@ -93,10 +93,22 @@ echo "$TOKEN_INIT" > "$TOKEN_FILE"
 # Pre-generate high-contrast pattern images for all tokens to avoid magick latency during stream start
 if [ -n "$MAGICK" ]; then
     echo "==> Pre-rendering pattern test frames (1280x720) for all test cycles..."
-    "$MAGICK" -size 1280x720 xc:white -fill black -pointsize 120 -gravity center -annotate +0+0 "$TOKEN_INIT" "$TMP_DIR/stage_${TOKEN_INIT}.png"
+    FONT_ARG=()
+    for f in \
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" \
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf" \
+        "/usr/share/fonts/dejavu-sans-fonts/DejaVuSans-Bold.ttf" \
+        "/usr/share/fonts/dejavu/DejaVuSans.ttf" \
+        "/usr/share/fonts/TTF/DejaVuSans.ttf"; do
+        if [ -f "$f" ]; then
+            FONT_ARG=(-font "$f")
+            break
+        fi
+    done
+    "$MAGICK" -size 1280x720 xc:white -fill black "${FONT_ARG[@]}" -pointsize 120 -gravity center -annotate +0+0 "$TOKEN_INIT" "$TMP_DIR/stage_${TOKEN_INIT}.png"
     for c in $(seq 1 "$CYCLES"); do
         tk="$(( 2000 + c * 111 ))"
-        "$MAGICK" -size 1280x720 xc:white -fill black -pointsize 120 -gravity center -annotate +0+0 "$tk" "$TMP_DIR/stage_${tk}.png"
+        "$MAGICK" -size 1280x720 xc:white -fill black "${FONT_ARG[@]}" -pointsize 120 -gravity center -annotate +0+0 "$tk" "$TMP_DIR/stage_${tk}.png"
     done
 fi
 

@@ -78,8 +78,22 @@ BASE_IMG="$TMP_DIR/base_token.png"
 CAPTURED_FRAME="$TMP_DIR/captured_frame.png"
 REVERSED_FRAME="$TMP_DIR/reversed_frame.png"
 
+# Locate a standard scalable font for magick rendering (fallback to default)
+FONT_ARG=()
+for f in \
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" \
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf" \
+    "/usr/share/fonts/dejavu-sans-fonts/DejaVuSans-Bold.ttf" \
+    "/usr/share/fonts/dejavu/DejaVuSans.ttf" \
+    "/usr/share/fonts/TTF/DejaVuSans.ttf"; do
+    if [ -f "$f" ]; then
+        FONT_ARG=(-font "$f")
+        break
+    fi
+done
+
 # Generate high-contrast base image with test token
-"$MAGICK" -size 640x480 xc:white -fill black -pointsize 72 -gravity center -annotate +0+0 "$EXPECTED_TOKEN" "$BASE_IMG"
+"$MAGICK" -size 640x480 xc:white -fill black "${FONT_ARG[@]}" -pointsize 72 -gravity center -annotate +0+0 "$EXPECTED_TOKEN" "$BASE_IMG"
 
 # Create mock adb in MOCK_BIN_DIR
 cat << 'EOF' > "$MOCK_BIN_DIR/adb"

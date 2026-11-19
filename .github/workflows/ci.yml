@@ -26,7 +26,7 @@ jobs:
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
             -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" \
             libgtk-4-dev libadwaita-1-dev libv4l-dev ffmpeg desktop-file-utils \
-            imagemagick tesseract-ocr tesseract-ocr-eng v4l2loopback-dkms
+            imagemagick tesseract-ocr tesseract-ocr-eng fonts-dejavu-core v4l2loopback-dkms
           sudo modprobe v4l2loopback video_nr=10 card_label="PhoneCam Virtual Camera" exclusive_caps=1 || true
           sudo chmod 666 /dev/video10 2>/dev/null || true
           echo "$USER ALL=(ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/phonecam-ci
